@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#1a5c2e">
+    <title>Admin / Sync</title>
+    <link rel="stylesheet" href="base.css">
+</head>
+<body>
+<div class="topbar">
+    <a href="index.html" class="topbar-back">‹</a>
+    <h1>⚙️ Admin</h1>
+    <span class="topbar-action"></span>
+</div>
+
+<div class="content">
+
+    <!-- Server Status -->
+    <div class="card mb-4">
+        <div class="card-title">🖥️ Server Connection</div>
+        <div class="flex-between mb-2">
+            <span class="text-muted text-sm">Primary</span>
+            <span id="server1Status" class="text-sm">Checking...</span>
+        </div>
+        <div class="flex-between mb-3">
+            <span class="text-muted text-sm">Backup</span>
+            <span id="server2Status" class="text-sm">Checking...</span>
+        </div>
+        <button class="btn btn-secondary" onclick="checkServers()" style="font-size:0.85rem;padding:10px;">🔄 Re-check</button>
+    </div>
+
+    <!-- Sync to Sheets -->
+    <div class="card mb-4" style="border-color:var(--accent);">
+        <div class="card-title">📤 Export to Google Sheets</div>
+        <p class="text-muted text-sm mb-3">
+            Pulls Items and Customers from the server database and writes them to Google Sheets.
+            Run this after adding new products or customers.
+        </p>
+
+        <button class="btn btn-primary mb-2" id="syncAllBtn" onclick="syncAll()">
+            🔄 Export Items + Customers
+        </button>
+
+        <div class="grid-2 gap-2">
+            <button class="btn btn-secondary" id="syncItemsBtn" onclick="syncItems()" style="font-size:0.8rem;">
+                📦 Items Only
+            </button>
+            <button class="btn btn-secondary" id="syncCustsBtn" onclick="syncCustomers()" style="font-size:0.8rem;">
+                👥 Customers Only
+            </button>
+        </div>
+
+        <div id="syncResult" class="hidden mt-3 card" style="background:var(--bg);">
+            <div id="syncResultText" class="text-sm"></div>
+        </div>
+    </div>
+
+    <!-- Offline Queue -->
+    <div class="card mb-4">
+        <div class="card-title">📱 Offline Queue</div>
+        <div class="flex-between mb-2">
+            <span class="text-muted text-sm">Pending records</span>
+            <span class="fw-bold" id="queueCount">0</span>
+        </div>
+        <div id="queueList" class="hidden mb-2" style="max-height:150px;overflow-y:auto;"></div>
+        <div class="grid-2 gap-2">
+            <button class="btn btn-secondary" onclick="refreshQueue()" style="font-size:0.8rem;">👁 View Queue</button>
+            <button class="btn btn-success" onclick="forceSyncQueue()" style="font-size:0.8rem;">⬆️ Sync Now</button>
+        </div>
+    </div>
+
+    <!-- Config Info -->
+    <div class="card">
+        <div class="card-title">ℹ️ Config</div>
+        <div class="flex-between mb-1"><span class="text-muted text-sm">Agent</span><span class="text-sm fw-bold" id="cfgAgent">—</span></div>
+        <div class="flex-between mb-1"><span class="text-muted text-sm">Spreadsheet</span><span class="text-sm" id="cfgSheet" style="word-break:break-all;max-width:60%;text-align:right;">—</span></div>
+        <div class="flex-between mb-1"><span class="text-muted text-sm">Primary Server</span><span class="text-sm" id="cfgServer">—</span></div>
+        <div class="flex-between"><span class="text-muted text-sm">API Key</span><span class="text-sm text-muted" id="cfgKey">—</span></div>
+    </div>
+
+</div>
+
+<script src="config.js"></script>
+<script src="sheets.js"></script>
+<script src="base.js"></script>
+<script>
+// Show config info
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('cfgAgent').textContent  = CONFIG.AGENT_NAME;
+    document.getElementById('cfgSheet').textContent  = CONFIG.SPREADSHEET_ID.slice(0, 20) + '…';
+    document.getElementById('cfgServer').textContent = CONFIG.SERVER_URL || 'Not set';
+    document.getElementById('cfgKey').textContent    = CONFIG.SHEETS_API_KEY
+        ? CONFIG.SHEETS_API_KEY.slice(0, 8) + '…' + CONFIG.SHEETS_API_KEY.slice(-4)
+        : 'Not set';
+    refreshQueue();
+    checkServers();
+});
+
+async function checkServers() {
+    const servers = [
+        { url: CONFIG.SERVER_URL,        id: 'server1Status' },
+        { url: CONFIG.BACKUP_SERVER_URL, id: 'server2Status' },
+    ];
+    for (const s of servers) {
+        const el = document.getElementById(s.id);
+        if (!s.url) { el.textContent = 'Not configured'; el.style.color = 'var(--text2)'; continue; }
+        el.textContent = 'Checking…';
+        try {
+            const r = await fetch(s.url + '/api/sheets-status', { signal: AbortSignal.timeout(4000) });
+            if (r.ok) {
+                el.textContent = '🟢 Online';
+                el.style.color = 'var(--green)';
+            } else {
+                el.textContent = '🟡 Reachable (' + r.status + ')';
+                el.style.color = 'var(--accent)';
+            }
+        } catch(e) {
+            el.textContent = '🔴 Offline';
+            el.style.color = 'var(--red)';
+        }
+    }
+}
+
+async function callServer(path) {
+    const urls = [CONFIG.SERVER_URL, CONFIG.BACKUP_SERVER_URL].filter(Boolean);
+    for (const base of urls) {
+        try {
+            const r = await fetch(base + path, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                signal: AbortSignal.timeout(30000)
+            });
+            return await r.json();
+        } catch(e) { /* try next */ }
+    }
+    return { success: false, error: 'Could not reach server. Make sure the Flask app is running.' };
+}
+
+function showResult(result) {
+    const el = document.getElementById('syncResult');
+    const txt = document.getElementById('syncResultText');
+    el.classList.remove('hidden');
+    if (result.success) {
+        el.style.borderColor = 'var(--green)';
+        txt.innerHTML = '<span style="color:var(--green);">✅ ' + (result.message || 'Done') + '</span>';
+    } else {
+        el.style.borderColor = 'var(--red)';
+        txt.innerHTML = '<span style="color:var(--red);">❌ ' + (result.error || 'Failed') + '</span>';
+        if (result.results) {
+            const details = Object.entries(result.results).map(([k, v]) =>
+                `${k}: ${v.success ? '✅ ' + v.count : '❌ ' + v.error}`
+            ).join('<br>');
+            txt.innerHTML += '<br><span class="text-muted" style="font-size:0.75rem;">' + details + '</span>';
+        }
+    }
+}
+
+async function syncAll() {
+    const btn = document.getElementById('syncAllBtn');
+    btn.disabled = true; btn.textContent = '⏳ Exporting…';
+    document.getElementById('syncResult').classList.add('hidden');
+    const result = await callServer('/api/sheets/export-all');
+    showResult(result);
+    btn.disabled = false; btn.textContent = '🔄 Export Items + Customers';
+}
+
+async function syncItems() {
+    const btn = document.getElementById('syncItemsBtn');
+    btn.disabled = true; btn.textContent = '⏳…';
+    const result = await callServer('/api/sheets/export-items');
+    showResult(result);
+    btn.disabled = false; btn.textContent = '📦 Items Only';
+}
+
+async function syncCustomers() {
+    const btn = document.getElementById('syncCustsBtn');
+    btn.disabled = true; btn.textContent = '⏳…';
+    const result = await callServer('/api/sheets/export-customers');
+    showResult(result);
+    btn.disabled = false; btn.textContent = '👥 Customers Only';
+}
+
+function refreshQueue() {
+    const queue = OfflineQueue.getAll();
+    document.getElementById('queueCount').textContent = queue.length;
+    if (queue.length === 0) {
+        document.getElementById('queueList').classList.add('hidden');
+        return;
+    }
+    document.getElementById('queueList').innerHTML = queue.map(q => `
+        <div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:0.75rem;">
+            <span class="text-accent">${q.action}</span>
+            <span class="text-muted"> — ${q.createdAt ? q.createdAt.slice(0,16) : ''}</span>
+        </div>`).join('');
+    document.getElementById('queueList').classList.remove('hidden');
+}
+
+async function forceSyncQueue() {
+    if (!navigator.onLine) { showToast('📡 No connection', true); return; }
+    showToast('🔄 Syncing offline queue…');
+    await OfflineQueue.syncAll();
+    refreshQueue();
+}
+</script>
+</body>
+</html>
