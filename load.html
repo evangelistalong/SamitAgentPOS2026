@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a5c2e">
+    <title>Truck Load</title>
+    <link rel="stylesheet" href="base.css">
+    <style>
+        .load-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 12px; margin-bottom: 4px;
+            background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border);
+        }
+        .load-item.verified { border-left: 3px solid var(--green); }
+        .load-item .item-info { flex: 1; min-width: 0; }
+        .load-item .item-name { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .load-item .item-sub { font-size: 0.7rem; color: var(--text2); }
+        .section-label { font-size: 0.75rem; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; padding-left: 4px; }
+    </style>
+</head>
+<body>
+<div class="topbar">
+    <a href="index.html" class="topbar-back">‹</a>
+    <h1>📦 Truck Load</h1>
+    <span class="topbar-action"></span>
+</div>
+
+<div class="content">
+    <!-- Summary Bar -->
+    <div class="card mb-3" style="padding: 10px 16px;">
+        <div class="flex-between">
+            <div><span class="fw-bold text-accent" id="totalItems">0</span> <span class="text-muted text-sm">items</span></div>
+            <div><span class="fw-bold" id="totalQty">0</span> <span class="text-muted text-sm">total qty</span></div>
+            <div><span class="fw-bold text-green" id="totalValue">₱0</span> <span class="text-muted text-sm">value</span></div>
+        </div>
+    </div>
+
+    <!-- Add Item -->
+    <div class="section-label">➕ Add Items</div>
+    <div class="search-bar mb-2">
+        <input type="text" class="input-field" id="itemSearch" placeholder="Tap to browse or type to search..." oninput="searchItems()" onfocus="showItemDropdown()" autocomplete="off">
+    </div>
+    <div id="searchResults" class="search-dropdown hidden"></div>
+
+    <!-- Loaded Items -->
+    <div class="flex-between mb-2" style="margin-top:12px;">
+        <div class="section-label" style="margin:0;">🚛 Loaded Items</div>
+        <button class="btn btn-success" id="submitLoad" onclick="submitForChecking()" style="display:none; padding:6px 14px; font-size:0.75rem;">✅ Submit for Checking</button>
+    </div>
+    <div id="loadList">
+        <div class="text-center text-muted" style="padding:30px 12px;">
+            <div style="font-size:2rem;margin-bottom:8px;">📦</div>
+            <div>No items loaded yet</div>
+            <div class="text-sm" style="margin-top:4px;">Search above to start adding items</div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Item Qty Modal -->
+<div class="modal-overlay" id="addQtyModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">📦 Add to Load</div>
+        <div class="fw-bold mb-1" id="addQtyItemName" style="font-size:0.95rem;"></div>
+        <div class="text-sm text-muted mb-3" id="addQtyItemSub"></div>
+        <div class="mb-3">
+            <label class="text-sm text-muted">Quantity</label>
+            <div class="qty-control" style="justify-content:center;display:inline-flex;width:100%;">
+                <button class="qty-btn" onclick="addQtyAdjust(-10)" style="width:60px;height:50px;font-size:1.1rem;">−10</button>
+                <button class="qty-btn" onclick="addQtyAdjust(-1)" style="width:50px;height:50px;font-size:1.3rem;">−</button>
+                <input type="number" class="qty-value" id="addQtyInput" value="1" min="1" style="width:80px;height:50px;font-size:1.3rem;text-align:center;" onclick="this.select()">
+                <button class="qty-btn" onclick="addQtyAdjust(1)" style="width:50px;height:50px;font-size:1.3rem;">+</button>
+                <button class="qty-btn" onclick="addQtyAdjust(10)" style="width:60px;height:50px;font-size:1.1rem;">+10</button>
+            </div>
+        </div>
+        <div class="grid-2">
+            <button class="btn btn-secondary" onclick="document.getElementById('addQtyModal').classList.remove('active')">Cancel</button>
+            <button class="btn btn-primary" onclick="confirmAddLoad()">✅ Add to Load</button>
+        </div>
+    </div>
+</div>
+
+<script src="config.js"></script>
+<script src="sheets.js"></script>
+<script src="base.js"></script>
+<script>
+let loadItems = [];
+let allItems = [];
+let searchTimeout;
+let loadedSKUs = new Set();
+let pendingAddItem = null;
+
+async function loadData() {
+    const result = await Sheets.getLoad();
+    loadItems = result || [];
+    loadedSKUs = new Set(loadItems.map(i => i.sku));
+    renderLoad();
+}
+
+async function loadAllItems() {
+    allItems = await Sheets.getAllItems();
+    if (!allItems.length) showToast('Could not load item catalog', true);
+}
+
+function renderLoad() {
+    const el = document.getElementById('loadList');
+    if (!loadItems.length) {
+        el.innerHTML = `<div class="text-center text-muted" style="padding:30px 12px;">
+            <div style="font-size:2rem;margin-bottom:8px;">📦</div>
+            <div>No items loaded yet</div>
+            <div class="text-sm" style="margin-top:4px;">Search above to start adding items</div>
+        </div>`;
+        document.getElementById('submitLoad').style.display = 'none';
+    } else {
+        el.innerHTML = loadItems.map(item => `
+            <div class="load-item ${item.verified ? 'verified' : ''}">
+                <div class="item-info">
+                    <div class="item-name">${item.name}</div>
+                    <div class="item-sub">SKU: ${item.sku} • ${fmt(item.price)}${item.soldQty > 0 ? ' • <span style="color:var(--green)">Sold: ' + item.soldQty + '</span>' : ''}${item.verified ? ' • <span style="color:var(--green)">✓ Verified</span>' : ''}</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <span class="fw-bold" style="min-width:40px;text-align:center;font-size:0.95rem;">${item.loadQty}</span>
+                    <button onclick="removeLoad('${item.loadId}')" style="background:none;border:none;color:var(--red);font-size:1.1rem;cursor:pointer;padding:4px 2px;">✕</button>
+                </div>
+            </div>`).join('');
+        document.getElementById('submitLoad').style.display = 'inline-flex';
+    }
+    document.getElementById('totalItems').textContent = loadItems.length;
+    document.getElementById('totalQty').textContent = loadItems.reduce((s, i) => s + i.loadQty, 0);
+    document.getElementById('totalValue').textContent = fmt(loadItems.reduce((s, i) => s + (i.loadQty * i.price), 0));
+}
+
+function showItemDropdown() {
+    const q = document.getElementById('itemSearch').value.trim().toLowerCase();
+    let filtered = allItems;
+    if (q.length > 0) filtered = allItems.filter(i => i.name.toLowerCase().includes(q) || i.sku.toLowerCase().includes(q));
+    const el = document.getElementById('searchResults');
+    if (!filtered.length) {
+        el.innerHTML = '<div class="text-center text-muted" style="padding:12px;">No matching items</div>';
+        el.classList.remove('hidden');
+        return;
+    }
+    el.innerHTML = filtered.slice(0, 40).map(item => {
+        const isLoaded = loadedSKUs.has(item.sku);
+        return `
+        <div class="search-item ${isLoaded ? '' : ''}" onclick='${isLoaded ? 'showToast("Already loaded",true)' : 'openAddModal(' + JSON.stringify(item).replace(/'/g,"&#39;") + ')'}'>
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:0.85rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.name}</div>
+                <div style="font-size:0.7rem;color:var(--text2);">SKU: ${item.sku} • ${fmt(item.wholesale)}</div>
+            </div>
+            <div class="${isLoaded ? 'loaded-badge' : 'add-badge'}">${isLoaded ? '✓ Loaded' : '+ Add'}</div>
+        </div>`;
+    }).join('');
+    if (filtered.length > 40) el.innerHTML += `<div class="text-center text-muted text-sm" style="padding:8px;">${filtered.length - 40} more — type to narrow</div>`;
+    el.classList.remove('hidden');
+}
+
+function searchItems() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(showItemDropdown, 150);
+}
+
+function openAddModal(item) {
+    pendingAddItem = item;
+    document.getElementById('addQtyItemName').textContent = item.name;
+    document.getElementById('addQtyItemSub').textContent = 'SKU: ' + item.sku + ' • ' + fmt(item.wholesale);
+    document.getElementById('addQtyInput').value = 1;
+    document.getElementById('addQtyModal').classList.add('active');
+    setTimeout(() => document.getElementById('addQtyInput').select(), 200);
+}
+
+function addQtyAdjust(delta) {
+    const el = document.getElementById('addQtyInput');
+    let v = (parseInt(el.value) || 0) + delta;
+    if (v < 1) v = 1;
+    el.value = v;
+}
+
+async function confirmAddLoad() {
+    if (!pendingAddItem) return;
+    const qty = parseInt(document.getElementById('addQtyInput').value) || 1;
+    document.getElementById('addQtyModal').classList.remove('active');
+    document.getElementById('itemSearch').value = '';
+    document.getElementById('searchResults').classList.add('hidden');
+
+    // Optimistic update
+    const tempId = 'LOCAL-' + Date.now();
+    loadItems.push({ loadId: tempId, sku: pendingAddItem.sku, name: pendingAddItem.name, price: pendingAddItem.wholesale, loadQty: qty, soldQty: 0, returnQty: 0, verified: false });
+    loadedSKUs.add(pendingAddItem.sku);
+    renderLoad();
+    showToast('✓ ' + pendingAddItem.name + ' ×' + qty + ' added');
+
+    const result = await Sheets.addLoadItem(pendingAddItem.sku, pendingAddItem.name, pendingAddItem.wholesale, qty);
+    if (!result.success && !result.offline) {
+        // Rollback
+        loadItems = loadItems.filter(i => i.loadId !== tempId);
+        loadedSKUs.delete(pendingAddItem.sku);
+        renderLoad();
+        showToast('Error saving item', true);
+    }
+    pendingAddItem = null;
+    // Refresh from Sheets to get real ID
+    setTimeout(loadData, 2000);
+}
+
+async function removeLoad(loadId) {
+    // Remove from local array immediately
+    loadItems = loadItems.filter(i => i.loadId !== loadId);
+    loadedSKUs = new Set(loadItems.map(i => i.sku));
+    renderLoad();
+    await Sheets.writeRows('load_remove', { loadId });
+}
+
+function submitForChecking() {
+    showToast('Load submitted for checking! ✅');
+    Sheets.writeRows('load_submit', { date: Sheets.today() });
+}
+
+// Init
+loadData();
+loadAllItems();
+// Close dropdown on outside tap
+document.addEventListener('click', e => {
+    if (!e.target.closest('#searchResults') && !e.target.closest('#itemSearch')) {
+        document.getElementById('searchResults').classList.add('hidden');
+    }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a5c2e">
+    <title>Collections</title>
+    <link rel="stylesheet" href="base.css">
+</head>
+<body>
+<div class="topbar">
+    <a href="index.html" class="topbar-back">‹</a>
+    <h1>💰 Collections</h1>
+    <span class="topbar-action"></span>
+</div>
+
+<div class="content">
+    <!-- New Collection Form -->
+    <div class="card mb-4">
+        <div class="card-title">Record Collection</div>
+        <div class="input-group">
+            <label>Customer</label>
+            <input type="text" class="input-field" id="custSearch" placeholder="Search customer..." oninput="filterCust()" autocomplete="off">
+        </div>
+        <div id="custList" class="hidden" style="max-height:150px;overflow-y:auto;margin-bottom:12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);"></div>
+        <div id="custSelected" class="hidden card mb-2" style="background:var(--bg);">
+            <div class="flex-between">
+                <div><span class="fw-bold" id="selCustName"></span></div>
+                <button class="btn btn-sm btn-outline" onclick="clearCust()">✕</button>
+            </div>
+            <div class="text-red mt-2" id="balDisplay">
+                Balance: <span id="selCustBal">₱0.00</span>
+                <button onclick="editBalance()" style="background:none;border:none;color:var(--accent);font-size:0.85rem;cursor:pointer;margin-left:8px;">✏️ Edit</button>
+            </div>
+            <div id="balEdit" class="hidden mt-2">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <label class="text-sm text-muted" style="white-space:nowrap;">Balance:</label>
+                    <input type="number" class="input-field" id="balEditInput" step="0.01" style="flex:1;">
+                    <button class="btn btn-sm btn-primary" onclick="saveBalance()" style="padding:6px 12px;white-space:nowrap;">Save</button>
+                    <button class="btn btn-sm btn-outline" onclick="cancelEditBalance()" style="padding:6px 10px;">✕</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label>Amount</label>
+            <input type="number" class="input-field" id="collAmount" step="0.01" placeholder="0.00" inputmode="decimal">
+        </div>
+
+        <div class="card-title">Payment Method</div>
+        <div class="grid-3 mb-4 gap-2">
+            <button class="btn btn-sm btn-primary" id="mCash" onclick="setMethod('Cash')">💵 Cash</button>
+            <button class="btn btn-sm btn-outline" id="mCheque" onclick="setMethod('Cheque')">📝 Cheque</button>
+            <button class="btn btn-sm btn-outline" id="mGCash" onclick="setMethod('GCash')">📱 GCash</button>
+        </div>
+
+        <div id="chequeFields" class="hidden">
+            <div class="input-group"><label>Cheque #</label><input type="text" class="input-field" id="chequeNum"></div>
+        </div>
+        <div id="gcashFields" class="hidden">
+            <div class="input-group"><label>GCash Ref</label><input type="text" class="input-field" id="gcashRef"></div>
+        </div>
+
+        <div class="input-group"><label>Notes</label><input type="text" class="input-field" id="collNotes" placeholder="Optional"></div>
+
+        <button class="btn btn-success" onclick="submitCollection()">✅ Record Collection</button>
+    </div>
+
+    <!-- Today's Collections -->
+    <div class="card-title">Today's Collections</div>
+    <div id="collList"></div>
+    <div class="card mt-2">
+        <div class="flex-between">
+            <span class="fw-bold">Total Collected</span>
+            <span class="fw-bold text-green" id="totalCollected">₱0.00</span>
+        </div>
+    </div>
+</div>
+
+<script src="config.js"></script>
+<script src="sheets.js"></script>
+<script src="base.js"></script>
+<script>
+let customers = [];
+let selCust = null;
+let method = 'Cash';
+
+async function init() {
+    customers = await Sheets.getCustomers();
+    if (!customers.length) showToast('Could not load customers', true);
+    loadCollections();
+}
+
+function filterCust() {
+    const q = document.getElementById('custSearch').value.toLowerCase();
+    if (q.length < 2) { document.getElementById('custList').classList.add('hidden'); return; }
+    const filtered = customers.filter(c => c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q)).slice(0, 10);
+    if (!filtered.length) { document.getElementById('custList').classList.add('hidden'); return; }
+    document.getElementById('custList').innerHTML = filtered.map(c => `
+        <div class="list-item" onclick="selectCust('${c.code}','${c.name.replace(/'/g,"\\'")}',${c.balance})" style="padding:8px 12px;margin-bottom:4px;">
+            <div class="list-item-info"><div class="list-item-name" style="font-size:0.85rem;">${c.name}</div></div>
+            <span class="text-red text-sm">${c.balance > 0 ? fmt(c.balance) : ''}</span>
+        </div>`).join('');
+    document.getElementById('custList').classList.remove('hidden');
+}
+
+function selectCust(code, name, bal) {
+    selCust = { code, name, balance: bal };
+    document.getElementById('custSearch').classList.add('hidden');
+    document.getElementById('custList').classList.add('hidden');
+    document.getElementById('custSelected').classList.remove('hidden');
+    document.getElementById('selCustName').textContent = name;
+    document.getElementById('selCustBal').textContent = fmt(bal);
+    document.getElementById('balDisplay').classList.remove('hidden');
+    document.getElementById('balEdit').classList.add('hidden');
+}
+
+function editBalance() {
+    document.getElementById('balDisplay').classList.add('hidden');
+    document.getElementById('balEdit').classList.remove('hidden');
+    document.getElementById('balEditInput').value = selCust.balance.toFixed(2);
+    document.getElementById('balEditInput').select();
+}
+
+function cancelEditBalance() {
+    document.getElementById('balDisplay').classList.remove('hidden');
+    document.getElementById('balEdit').classList.add('hidden');
+}
+
+async function saveBalance() {
+    const newBal = parseFloat(document.getElementById('balEditInput').value) || 0;
+    const result = await Sheets.writeRows('balance_adjust', {
+        customerCode: selCust.code,
+        customerName: selCust.name,
+        balance: newBal
+    });
+    if (result.success || result.offline) {
+        selCust.balance = newBal;
+        document.getElementById('selCustBal').textContent = fmt(newBal);
+        cancelEditBalance();
+        showToast('Balance updated to ' + fmt(newBal));
+        Cache.clear('customers');
+        customers = await Sheets.getCustomers();
+    } else {
+        showToast('Error saving balance', true);
+    }
+}
+
+function clearCust() {
+    selCust = null;
+    document.getElementById('custSearch').classList.remove('hidden');
+    document.getElementById('custSearch').value = '';
+    document.getElementById('custSelected').classList.add('hidden');
+    document.getElementById('balDisplay').classList.remove('hidden');
+    document.getElementById('balEdit').classList.add('hidden');
+}
+
+function setMethod(m) {
+    method = m;
+    ['Cash', 'Cheque', 'GCash'].forEach(x => {
+        document.getElementById('m' + x).className = 'btn btn-sm ' + (x === m ? 'btn-primary' : 'btn-outline');
+    });
+    document.getElementById('chequeFields').classList.toggle('hidden', m !== 'Cheque');
+    document.getElementById('gcashFields').classList.toggle('hidden', m !== 'GCash');
+}
+
+async function submitCollection() {
+    if (!selCust) { showToast('Select a customer', true); return; }
+    const amt = parseFloat(document.getElementById('collAmount').value);
+    if (!amt || amt <= 0) { showToast('Enter amount', true); return; }
+
+    const payload = {
+        customerCode: selCust.code,
+        customerName: selCust.name,
+        amount: amt,
+        paymentMethod: method,
+        chequeNumber: document.getElementById('chequeNum').value,
+        gcashRef: document.getElementById('gcashRef').value,
+        notes: document.getElementById('collNotes').value,
+        remittanceNo: 1
+    };
+
+    const result = await Sheets.postCollection(payload);
+    if (result.success || result.offline) {
+        showToast(result.offline ? '📱 Saved offline' : 'Collection recorded! ✅');
+        clearCust();
+        document.getElementById('collAmount').value = '';
+        document.getElementById('collNotes').value = '';
+        document.getElementById('chequeNum').value = '';
+        document.getElementById('gcashRef').value = '';
+        Cache.clear('customers');
+        customers = await Sheets.getCustomers();
+        loadCollections();
+    } else {
+        showToast('Error: ' + (result.error || 'Failed'), true);
+    }
+}
+
+async function loadCollections() {
+    const data = await Sheets.getTodayCollections();
+    if (!data || !data.length) {
+        document.getElementById('collList').innerHTML = '<div class="text-center text-muted" style="padding:20px;">No collections yet</div>';
+        document.getElementById('totalCollected').textContent = '₱0.00';
+        return;
+    }
+    document.getElementById('collList').innerHTML = data.map(c => `
+        <div class="list-item" style="margin-bottom:4px;">
+            <div class="list-item-info">
+                <div class="list-item-name" style="font-size:0.85rem;">${c.customerName}</div>
+                <div class="list-item-sub">${c.timestamp || ''} • ${c.method}</div>
+            </div>
+            <div class="list-item-price">${fmt(c.amount)}</div>
+        </div>`).join('');
+    document.getElementById('totalCollected').textContent = fmt(data.reduce((s, c) => s + c.amount, 0));
+}
+
+init();
+</script>
+</body>
+</html>

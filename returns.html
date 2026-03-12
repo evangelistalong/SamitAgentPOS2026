@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a5c2e">
+    <title>End of Day Returns</title>
+    <link rel="stylesheet" href="base.css">
+</head>
+<body>
+<div class="topbar">
+    <a href="index.html" class="topbar-back">‹</a>
+    <h1>📦 End of Day Returns</h1>
+    <span class="topbar-action"></span>
+</div>
+
+<div class="content">
+    <div class="card grid-3 mb-4">
+        <div class="stat"><div class="stat-value stat-accent" id="totalLoaded">0</div><div class="stat-label">Loaded</div></div>
+        <div class="stat"><div class="stat-value stat-red" id="totalReturned">0</div><div class="stat-label">Returned</div></div>
+        <div class="stat"><div class="stat-value stat-green" id="totalSold">0</div><div class="stat-label">Sold</div></div>
+    </div>
+    <div id="returnList"></div>
+    <button class="btn btn-success mt-4" id="submitReturns" onclick="submitReturns()" style="display:none;">✅ Submit Returns for Verification</button>
+</div>
+
+<script src="config.js"></script>
+<script src="sheets.js"></script>
+<script src="base.js"></script>
+<script>
+let loadItems = [];
+
+async function loadData() {
+    const result = await Sheets.getLoad();
+    loadItems = result || [];
+    render();
+}
+
+function render() {
+    const el = document.getElementById('returnList');
+    if (!loadItems.length) {
+        el.innerHTML = '<div class="empty-state"><div class="icon">📦</div><p>No load data for today</p></div>';
+        document.getElementById('totalLoaded').textContent = 0;
+        document.getElementById('totalReturned').textContent = 0;
+        document.getElementById('totalSold').textContent = 0;
+        document.getElementById('submitReturns').style.display = 'none';
+        return;
+    }
+
+    el.innerHTML = loadItems.map(item => `
+        <div class="list-item" style="padding:10px 12px;margin-bottom:4px;">
+            <div class="list-item-info">
+                <div class="list-item-name" style="font-size:0.85rem;">${item.name}</div>
+                <div class="list-item-sub">
+                    Loaded: ${item.loadQty} •
+                    Sold: <span style="color:var(--green)">${item.soldQty}</span> •
+                    Remaining: ${item.loadQty - item.soldQty}
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <span class="text-sm text-muted">Return:</span>
+                <div class="qty-control">
+                    <button class="qty-btn" onclick="updateReturn('${item.loadId}', ${item.returnQty - 1})">−</button>
+                    <span class="qty-value" id="retQty_${item.loadId}">${item.returnQty}</span>
+                    <button class="qty-btn" onclick="updateReturn('${item.loadId}', ${item.returnQty + 1})">+</button>
+                </div>
+            </div>
+        </div>`).join('');
+
+    const loaded   = loadItems.reduce((s, i) => s + i.loadQty, 0);
+    const returned = loadItems.reduce((s, i) => s + i.returnQty, 0);
+    const sold     = loadItems.reduce((s, i) => s + i.soldQty, 0);
+    document.getElementById('totalLoaded').textContent   = loaded;
+    document.getElementById('totalReturned').textContent = returned;
+    document.getElementById('totalSold').textContent     = sold;
+    document.getElementById('submitReturns').style.display = returned > 0 ? 'block' : 'none';
+}
+
+async function updateReturn(id, qty) {
+    if (qty < 0) qty = 0;
+    const item = loadItems.find(i => i.loadId === id);
+    if (!item) return;
+    if (qty > item.loadQty) qty = item.loadQty;
+
+    // Optimistic update
+    item.returnQty = qty;
+    const el = document.getElementById('retQty_' + id);
+    if (el) el.textContent = qty;
+    const returned = loadItems.reduce((s, i) => s + i.returnQty, 0);
+    document.getElementById('totalReturned').textContent = returned;
+    document.getElementById('submitReturns').style.display = returned > 0 ? 'block' : 'none';
+
+    await Sheets.updateReturnQty(id, qty);
+}
+
+async function submitReturns() {
+    const result = await Sheets.writeRows('returns_submit', {
+        date: Sheets.today(),
+        items: loadItems.map(i => ({ loadId: i.loadId, sku: i.sku, name: i.name, returnQty: i.returnQty }))
+    });
+    if (result.success || result.offline) {
+        showToast(result.offline ? '📱 Saved offline — will sync when connected' : 'Returns submitted for verification! ✅');
+    } else {
+        showToast('Error submitting returns', true);
+    }
+}
+
+loadData();
+</script>
+</body>
+</html>

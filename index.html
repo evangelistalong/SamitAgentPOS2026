@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a5c2e">
+    <title>Samit Agent POS</title>
+    <link rel="stylesheet" href="base.css">
+    <style>
+        .home-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+        .home-btn {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 24px 12px; background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius); text-decoration: none; color: var(--text);
+            transition: background 0.2s;
+        }
+        .home-btn:active { background: var(--bg3); }
+        .home-btn .icon { font-size: 2rem; margin-bottom: 8px; }
+        .home-btn .label { font-size: 0.85rem; font-weight: 600; text-align: center; }
+        .home-btn .sub { font-size: 0.7rem; color: var(--text2); margin-top: 4px; text-align: center; }
+        .home-btn.primary { background: linear-gradient(135deg, rgba(212,168,67,0.2), rgba(212,168,67,0.05)); border-color: var(--accent); }
+        .date-banner { text-align: center; padding: 16px; }
+        .date-banner .date { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .date-banner .agent { font-size: 0.85rem; color: var(--text2); margin-top: 4px; }
+    </style>
+</head>
+<body>
+<div class="topbar">
+    <span class="topbar-back"></span>
+    <h1>🚚 Samit Agent POS</h1>
+    <span class="topbar-action"></span>
+</div>
+
+<div class="content">
+    <div class="date-banner">
+        <div class="date" id="todayDate">—</div>
+        <div class="agent" id="agentName">—</div>
+    </div>
+
+    <!-- Quick stats bar -->
+    <div class="card grid-3 mb-4" style="padding:10px 4px;" id="statsBar">
+        <div class="stat"><div class="stat-value stat-accent" id="statLoaded">—</div><div class="stat-label">Loaded</div></div>
+        <div class="stat"><div class="stat-value stat-green" id="statSold">—</div><div class="stat-label">Sold</div></div>
+        <div class="stat"><div class="stat-value" id="statCollected">—</div><div class="stat-label">Collected</div></div>
+    </div>
+
+    <div class="home-grid">
+        <a href="load.html" class="home-btn">
+            <div class="icon">📦</div>
+            <div class="label">Truck Load</div>
+            <div class="sub">Add morning stock</div>
+        </a>
+        <a href="pos.html" class="home-btn primary">
+            <div class="icon">🛒</div>
+            <div class="label">New Sale</div>
+            <div class="sub">Sell items</div>
+        </a>
+        <a href="collections.html" class="home-btn">
+            <div class="icon">💰</div>
+            <div class="label">Collections</div>
+            <div class="sub">Record payments</div>
+        </a>
+        <a href="returns.html" class="home-btn">
+            <div class="icon">🔄</div>
+            <div class="label">Returns</div>
+            <div class="sub">End of day returns</div>
+        </a>
+    </div>
+
+    <a href="remittance.html" class="home-btn" style="display:flex;flex-direction:row;gap:16px;margin-bottom:12px;">
+        <div class="icon">💼</div>
+        <div>
+            <div class="label" style="text-align:left;">Remittance</div>
+            <div class="sub" style="text-align:left;">Submit cash to office</div>
+        </div>
+    </a>
+
+    <!-- Offline queue status -->
+    <div class="card" id="syncCard" style="display:none;border-color:var(--red);">
+        <div class="flex-between">
+            <div>
+                <div class="fw-bold text-sm">📱 Offline Queue</div>
+                <div class="text-muted text-sm" id="syncMsg">Pending records waiting to sync</div>
+            </div>
+            <button class="btn btn-sm btn-outline" onclick="manualSync()" style="padding:6px 12px;">🔄 Sync Now</button>
+        </div>
+    </div>
+</div>
+
+<script src="config.js"></script>
+<script src="sheets.js"></script>
+<script src="base.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    document.getElementById('todayDate').textContent = Sheets.today();
+    document.getElementById('agentName').textContent = '👤 ' + CONFIG.AGENT_NAME;
+
+    // Hide the duplicate agent badge on home page (it's shown in the banner)
+    const badge = document.getElementById('agentBadge');
+    if (badge) badge.style.display = 'none';
+
+    // Load quick stats
+    try {
+        const [load, colls] = await Promise.all([
+            Sheets.getLoad(),
+            Sheets.getTodayCollections()
+        ]);
+        if (load && load.length) {
+            const totalLoaded = load.reduce((s, i) => s + i.loadQty, 0);
+            const totalSold   = load.reduce((s, i) => s + i.soldQty, 0);
+            document.getElementById('statLoaded').textContent = totalLoaded;
+            document.getElementById('statSold').textContent   = totalSold;
+        } else {
+            document.getElementById('statLoaded').textContent = '0';
+            document.getElementById('statSold').textContent   = '0';
+        }
+        if (colls && colls.length) {
+            const total = colls.reduce((s, c) => s + c.amount, 0);
+            document.getElementById('statCollected').textContent = fmt(total);
+        } else {
+            document.getElementById('statCollected').textContent = '₱0';
+        }
+    } catch(e) {
+        document.getElementById('statLoaded').textContent = '?';
+        document.getElementById('statSold').textContent   = '?';
+        document.getElementById('statCollected').textContent = '?';
+    }
+
+    // Show offline queue status
+    const pending = OfflineQueue.pendingCount();
+    if (pending > 0) {
+        document.getElementById('syncCard').style.display = 'block';
+        document.getElementById('syncMsg').textContent = pending + ' record' + (pending > 1 ? 's' : '') + ' waiting to sync';
+    }
+});
+
+async function manualSync() {
+    if (!navigator.onLine) { showToast('📡 No connection', true); return; }
+    showToast('🔄 Syncing...');
+    await OfflineQueue.syncAll();
+    const pending = OfflineQueue.pendingCount();
+    if (pending === 0) {
+        document.getElementById('syncCard').style.display = 'none';
+        showToast('✅ All synced!');
+    } else {
+        document.getElementById('syncMsg').textContent = pending + ' record(s) still pending';
+    }
+}
+</script>
+</body>
+</html>
