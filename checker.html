@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Checker — Samit Agent POS</title>
+<link rel="stylesheet" href="base.css">
+<style>
+.item-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: border-color 0.2s;
+}
+.item-card.verified { border-color: var(--green); background: rgba(74,222,128,0.06); }
+.item-card.modified { border-color: var(--accent); background: rgba(212,168,67,0.06); }
+.item-info { flex: 1; }
+.item-name { font-weight: 600; font-size: 0.95rem; margin-bottom: 2px; }
+.item-sku  { font-size: 0.78rem; color: var(--text2); }
+.qty-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.qty-btn {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--card2);
+    color: var(--text);
+    font-size: 1.1rem;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.qty-input {
+    width: 52px;
+    text-align: center;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 1rem;
+    padding: 4px;
+}
+.check-btn {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s;
+}
+.check-btn.checked {
+    background: var(--green);
+    border-color: var(--green);
+    color: #fff;
+}
+.agent-badge {
+    display: inline-block;
+    background: rgba(212,168,67,0.15);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+.filter-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+.filter-tab {
+    flex: 1;
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--card2);
+    color: var(--text2);
+    font-size: 0.82rem;
+    cursor: pointer;
+    text-align: center;
+}
+.filter-tab.active {
+    background: var(--accent);
+    color: #1a2e1a;
+    border-color: var(--accent);
+    font-weight: 700;
+}
+</style>
+</head>
+<body>
+<div class="topbar">
+    <a href="index.html" class="topbar-back">‹</a>
+    <h1>✅ Checker</h1>
+    <span id="syncBadge" class="sync-badge" style="display:none">0</span>
+</div>
+
+<div class="content">
+    <!-- Agent selector -->
+    <div class="card mb-3">
+        <label class="label">Agent Name</label>
+        <input type="text" class="input-field" id="agentInput" placeholder="Enter agent name to verify" value="">
+        <button class="btn btn-primary mt-2" onclick="loadAgentData()" style="width:100%">Load Agent's Truck</button>
+    </div>
+
+    <div id="mainContent" style="display:none">
+        <!-- Stats -->
+        <div class="card grid-3 mb-3">
+            <div class="stat">
+                <div class="stat-value" id="statTotal">0</div>
+                <div class="stat-label">Items</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value stat-green" id="statVerified">0</div>
+                <div class="stat-label">Verified</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value stat-red" id="statPending">0</div>
+                <div class="stat-label">Pending</div>
+            </div>
+        </div>
+
+        <!-- Filter tabs -->
+        <div class="filter-tabs">
+            <div class="filter-tab active" onclick="setFilter('all', this)">All</div>
+            <div class="filter-tab" onclick="setFilter('pending', this)">Pending</div>
+            <div class="filter-tab" onclick="setFilter('verified', this)">Verified</div>
+        </div>
+
+        <!-- Item list -->
+        <div id="itemList"></div>
+
+        <!-- Checker name + submit -->
+        <div class="card mt-3">
+            <label class="label">Checker Name</label>
+            <input type="text" class="input-field mb-3" id="checkerName" placeholder="Your name">
+            <button class="btn btn-success" id="submitBtn" onclick="submitVerification()" style="width:100%">
+                ✅ Submit Verification
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="config.js"></script>
+<script src="sheets.js"></script>
+<script src="base.js"></script>
+<script>
+let loadItems = [];
+let verified  = {}; // loadId -> true/false
+let modQty    = {}; // loadId -> modified qty
+let filter    = 'all';
+let agentName = '';
+
+function setFilter(f, el) {
+    filter = f;
+    document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    render();
+}
+
+async function loadAgentData() {
+    agentName = document.getElementById('agentInput').value.trim();
+    if (!agentName) { showToast('Enter agent name', true); return; }
+
+    showToast('Loading...');
+    const rows = await Sheets.readSheet(CONFIG.SHEETS.LOAD);
+    if (!rows || rows.length < 2) {
+        showToast('No load data found', true);
+        return;
+    }
+
+    const today = Sheets.today();
+    const [headers, ...data] = rows;
+    const h = headers.map(x => x.trim().toLowerCase());
+
+    loadItems = data
+        .filter(r =>
+            (r[h.indexOf('date')] || '').slice(0,10) === today &&
+            (r[h.indexOf('agent')] || '').toLowerCase() === agentName.toLowerCase()
+        )
+        .map(r => ({
+            loadId:   r[h.indexOf('loadid')] || '',
+            sku:      r[h.indexOf('sku')] || '',
+            name:     r[h.indexOf('name')] || '',
+            price:    parseFloat(r[h.indexOf('price')]) || 0,
+            loadQty:  parseInt(r[h.indexOf('loadqty')]) || 0,
+            verified: (r[h.indexOf('verified')] || '').toLowerCase() === 'true',
+            checkerName: r[h.indexOf('checkername')] || '',
+        }));
+
+    if (!loadItems.length) {
+        showToast('No load found for ' + agentName + ' today', true);
+        return;
+    }
+
+    // Pre-fill verified state
+    loadItems.forEach(i => {
+        if (i.verified) verified[i.loadId] = true;
+        modQty[i.loadId] = i.loadQty;
+    });
+
+    document.getElementById('mainContent').style.display = 'block';
+    render();
+    showToast('Loaded ' + loadItems.length + ' items for ' + agentName);
+}
+
+function render() {
+    const list = document.getElementById('itemList');
+    let items = loadItems;
+
+    if (filter === 'pending')  items = items.filter(i => !verified[i.loadId]);
+    if (filter === 'verified') items = items.filter(i => verified[i.loadId]);
+
+    if (!items.length) {
+        list.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>No items</p></div>';
+    } else {
+        list.innerHTML = items.map(item => {
+            const isVerified = verified[item.loadId];
+            const qty = modQty[item.loadId] ?? item.loadQty;
+            const isModified = qty !== item.loadQty;
+            return `
+            <div class="item-card ${isVerified ? 'verified' : ''} ${isModified && !isVerified ? 'modified' : ''}">
+                <div class="item-info">
+                    <div class="item-name">${item.name}</div>
+                    <div class="item-sku">SKU: ${item.sku} &nbsp;•&nbsp; ₱${item.price.toFixed(2)}</div>
+                    ${isModified ? `<div style="font-size:0.78rem;color:var(--accent);margin-top:2px;">Original: ${item.loadQty} → Adjusted: ${qty}</div>` : ''}
+                </div>
+                <div class="qty-controls">
+                    <button class="qty-btn" onclick="changeQty('${item.loadId}', -1)">−</button>
+                    <input class="qty-input" type="number" value="${qty}" min="0"
+                        onchange="setQty('${item.loadId}', this.value)"
+                        onclick="this.select()">
+                    <button class="qty-btn" onclick="changeQty('${item.loadId}', 1)">+</button>
+                </div>
+                <button class="check-btn ${isVerified ? 'checked' : ''}"
+                    onclick="toggleVerify('${item.loadId}')">
+                    ${isVerified ? '✓' : ''}
+                </button>
+            </div>`;
+        }).join('');
+    }
+
+    const total    = loadItems.length;
+    const verCount = loadItems.filter(i => verified[i.loadId]).length;
+    document.getElementById('statTotal').textContent    = total;
+    document.getElementById('statVerified').textContent = verCount;
+    document.getElementById('statPending').textContent  = total - verCount;
+}
+
+function toggleVerify(loadId) {
+    verified[loadId] = !verified[loadId];
+    render();
+}
+
+function changeQty(loadId, delta) {
+    const current = modQty[loadId] ?? 0;
+    modQty[loadId] = Math.max(0, current + delta);
+    render();
+}
+
+function setQty(loadId, val) {
+    modQty[loadId] = Math.max(0, parseInt(val) || 0);
+    render();
+}
+
+async function submitVerification() {
+    const checkerName = document.getElementById('checkerName').value.trim();
+    if (!checkerName) { showToast('Enter checker name', true); return; }
+
+    const verifiedItems = loadItems.filter(i => verified[i.loadId]);
+    if (!verifiedItems.length) { showToast('Verify at least one item', true); return; }
+
+    document.getElementById('submitBtn').disabled = true;
+    document.getElementById('submitBtn').textContent = 'Submitting...';
+
+    let ok = 0;
+    for (const item of verifiedItems) {
+        const qty = modQty[item.loadId] ?? item.loadQty;
+        const result = await Sheets.writeRows('checker_verify', {
+            loadId: item.loadId,
+            checkerName,
+            verifiedQty: qty,
+        });
+        if (result.success || result.offline) ok++;
+    }
+
+    showToast('✅ ' + ok + ' items verified by ' + checkerName);
+
+    // Show success screen
+    setTimeout(() => {
+        document.querySelector('.content').innerHTML = `
+            <div style="text-align:center;padding:60px 20px;">
+                <div style="font-size:5rem;margin-bottom:16px;">✅</div>
+                <div style="font-size:1.4rem;font-weight:700;color:var(--green);margin-bottom:8px;">Load Verified!</div>
+                <div style="color:var(--text2);margin-bottom:6px;">Checked by <strong>${checkerName}</strong></div>
+                <div style="color:var(--text2);font-size:0.9rem;margin-bottom:28px;">${ok} of ${loadItems.length} items verified for <strong>${agentName}</strong></div>
+                <a href="index.html" class="btn btn-primary" style="display:inline-block;width:240px;text-align:center;text-decoration:none;padding:14px;">🏠 Back to Home</a>
+            </div>`;
+    }, 1000);
+}
+
+// Auto-fill agent from URL param e.g. checker.html?agent=Raul
+const urlAgent = new URLSearchParams(window.location.search).get('agent');
+if (urlAgent) {
+    document.getElementById('agentInput').value = urlAgent;
+    loadAgentData();
+}
+</script>
+</body>
+</html>
