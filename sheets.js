@@ -1,34 +1,30 @@
 // =============================================================
 // SAMIT AGENT POS — GOOGLE SHEETS HELPER
-// All reads go via the public Sheets API (API key).
-// All writes go via the service-account proxy on the Flask server
-// when online, or are queued in localStorage when offline.
+// Reads via public Sheets API (API key).
+// Writes via Google Apps Script web app proxy.
+// Falls back to offline queue when unreachable.
 // =============================================================
 
 const Sheets = {
 
     // ── UTILITIES ────────────────────────────────────────────
 
-    /** Return today's date string in PH timezone: YYYY-MM-DD */
     today() {
         const now = new Date(Date.now() + CONFIG.TZ_OFFSET * 3600000);
         return now.toISOString().slice(0, 10);
     },
 
-    /** Return current PH datetime string: YYYY-MM-DD HH:MM:SS */
     now() {
         const now = new Date(Date.now() + CONFIG.TZ_OFFSET * 3600000);
         return now.toISOString().slice(0, 19).replace('T', ' ');
     },
 
-    /** Format as ₱ currency */
     fmt(n) {
         return '₱' + (n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     },
 
     // ── LOW-LEVEL SHEETS API ──────────────────────────────────
 
-    /** Read a full sheet tab, returns array of row arrays */
     async readSheet(tabName) {
         const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/${encodeURIComponent(tabName)}?key=${CONFIG.SHEETS_API_KEY}`;
         try {
@@ -38,36 +34,32 @@ const Sheets = {
             return data.values || [];
         } catch (e) {
             console.error('[Sheets.readSheet]', tabName, e);
-            return null; // null = error, [] = empty sheet
+            return null;
         }
     },
 
-    /**
-     * Write rows to a sheet via the Flask server proxy.
-     * Falls back to offline queue when server is unreachable.
-     */
+    // Write via Apps Script proxy — falls back to offline queue
     async writeRows(action, payload) {
         const body = { action, agent: CONFIG.AGENT_NAME, ...payload };
-        const urls = [CONFIG.SERVER_URL, CONFIG.BACKUP_SERVER_URL].filter(Boolean);
-        for (const base of urls) {
-            try {
-                const r = await fetch(base + '/api/sheets-write', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body),
-                    signal: AbortSignal.timeout(6000)
-                });
-                const result = await r.json();
-                if (result.success) return result;
-            } catch (e) { /* try next */ }
+        try {
+            const r = await fetch(CONFIG.APPS_SCRIPT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' }, // Apps Script requires text/plain for CORS
+                body: JSON.stringify(body),
+                signal: AbortSignal.timeout(10000)
+            });
+            const result = await r.json();
+            if (result.success) return result;
+            console.warn('[Sheets.writeRows] Apps Script error:', result.error);
+        } catch (e) {
+            console.warn('[Sheets.writeRows] Apps Script unreachable:', e.message);
         }
-        // Both servers unreachable — queue offline
+        // Unreachable — queue offline
         return OfflineQueue.enqueue(action, body);
     },
 
     // ── LOAD ─────────────────────────────────────────────────
 
-    /** Fetch today's load from Sheets */
     async getLoad() {
         const rows = await this.readSheet(CONFIG.SHEETS.LOAD);
         if (!rows) return null;
@@ -78,35 +70,31 @@ const Sheets = {
             .filter(r => (r[h.indexOf('date')] || '') === this.today() &&
                          (r[h.indexOf('agent')] || '') === CONFIG.AGENT_NAME)
             .map(r => ({
-                loadId:    r[h.indexOf('loadid')] || '',
-                sku:       r[h.indexOf('sku')] || '',
-                name:      r[h.indexOf('name')] || '',
-                price:     parseFloat(r[h.indexOf('price')]) || 0,
-                loadQty:   parseInt(r[h.indexOf('loadqty')]) || 0,
-                soldQty:   parseInt(r[h.indexOf('soldqty')]) || 0,
-                returnQty: parseInt(r[h.indexOf('returnqty')]) || 0,
-                verified:  (r[h.indexOf('verified')] || '').toLowerCase() === 'true',
+                loadId:      r[h.indexOf('loadid')] || '',
+                sku:         r[h.indexOf('sku')] || '',
+                name:        r[h.indexOf('name')] || '',
+                price:       parseFloat(r[h.indexOf('price')]) || 0,
+                loadQty:     parseInt(r[h.indexOf('loadqty')]) || 0,
+                soldQty:     parseInt(r[h.indexOf('soldqty')]) || 0,
+                returnQty:   parseInt(r[h.indexOf('returnqty')]) || 0,
+                verified:    (r[h.indexOf('verified')] || '').toLowerCase() === 'true',
                 checkerName: r[h.indexOf('checkername')] || '',
             }));
     },
 
-    /** Add a load item */
     async addLoadItem(sku, name, price, qty) {
         return this.writeRows('load_add', { sku, name, price, qty, date: this.today() });
     },
 
-    /** Update return qty for a load item */
     async updateReturnQty(loadId, returnQty) {
         return this.writeRows('load_return', { loadId, returnQty });
     },
 
     // ── ITEMS CATALOG ─────────────────────────────────────────
 
-    /** Get all items from Items sheet (catalog) */
     async getAllItems() {
         const cached = Cache.get('items');
         if (cached) return cached;
-
         const rows = await this.readSheet(CONFIG.SHEETS.ITEMS);
         if (!rows || rows.length < 2) return [];
         const [headers, ...data] = rows;
@@ -118,11 +106,10 @@ const Sheets = {
             discountable: (r[h.indexOf('discountable')] || 'true').toLowerCase() !== 'false',
             commission:   parseFloat(r[h.indexOf('commission')]) || 0,
         })).filter(i => i.sku);
-        Cache.set('items', items, 30 * 60 * 1000); // 30 min cache
+        Cache.set('items', items, 30 * 60 * 1000);
         return items;
     },
 
-    /** Get loaded items (for POS — with remaining qty) */
     async getLoadedItems() {
         const load = await this.getLoad();
         if (!load) return [];
@@ -141,11 +128,9 @@ const Sheets = {
 
     // ── CUSTOMERS ─────────────────────────────────────────────
 
-    /** Get all customers with balances */
     async getCustomers() {
         const cached = Cache.get('customers');
         if (cached) return cached;
-
         const rows = await this.readSheet(CONFIG.SHEETS.CUSTOMERS);
         if (!rows || rows.length < 2) return [];
         const [headers, ...data] = rows;
@@ -155,13 +140,12 @@ const Sheets = {
             name:    r[h.indexOf('name')] || '',
             balance: parseFloat(r[h.indexOf('balance')]) || 0,
         })).filter(c => c.code);
-        Cache.set('customers', customers, 5 * 60 * 1000); // 5 min cache
+        Cache.set('customers', customers, 5 * 60 * 1000);
         return customers;
     },
 
     // ── TRANSACTIONS ──────────────────────────────────────────
 
-    /** Post a completed sale */
     async postTransaction(payload) {
         return this.writeRows('transaction', {
             date: this.today(),
@@ -170,7 +154,6 @@ const Sheets = {
         });
     },
 
-    /** Get today's transactions (for history view) */
     async getTodayTransactions() {
         const rows = await this.readSheet(CONFIG.SHEETS.TRANSACTIONS);
         if (!rows || rows.length < 2) return [];
@@ -191,7 +174,6 @@ const Sheets = {
 
     // ── COLLECTIONS ───────────────────────────────────────────
 
-    /** Post a collection */
     async postCollection(payload) {
         return this.writeRows('collection', {
             date: this.today(),
@@ -200,7 +182,6 @@ const Sheets = {
         });
     },
 
-    /** Get today's collections */
     async getTodayCollections() {
         const rows = await this.readSheet(CONFIG.SHEETS.COLLECTIONS);
         if (!rows || rows.length < 2) return [];
@@ -243,11 +224,10 @@ const Sheets = {
             });
         };
 
-        const txs = parseRows(txRows);
+        const txs   = parseRows(txRows);
         const colls = parseRows(collRows);
-        const rems = parseRows(remRows);
+        const rems  = parseRows(remRows);
 
-        // Expected remittance 1: all transactions in rem slot 1
         const tx1 = txs.filter(t => (t['remittanceno'] || '1') === '1');
         const e1 = {
             cash:   tx1.filter(t => t['paymentmethod'] === 'Cash').reduce((s, t) => s + parseFloat(t['cashamount'] || t['total'] || 0), 0),
@@ -256,21 +236,19 @@ const Sheets = {
         };
         e1.total = e1.cash + e1.cheque + e1.gcash;
 
-        // Collections also feed remittance
         const coll1 = colls.filter(c => (c['remittanceno'] || '1') === '1');
         e1.cash   += coll1.filter(c => c['paymentmethod'] === 'Cash').reduce((s, c) => s + parseFloat(c['amount'] || 0), 0);
         e1.cheque += coll1.filter(c => c['paymentmethod'] === 'Cheque').reduce((s, c) => s + parseFloat(c['amount'] || 0), 0);
         e1.gcash  += coll1.filter(c => c['paymentmethod'] === 'GCash').reduce((s, c) => s + parseFloat(c['amount'] || 0), 0);
         e1.total = e1.cash + e1.cheque + e1.gcash;
 
-        // Remittance 2: everything after rem 1 was submitted
-        const tx2 = txs.filter(t => (t['remittanceno'] || '1') === '2');
-        const coll2 = colls.filter(c => (c['remittanceno'] || '1') === '2');
+        const tx2    = txs.filter(t => (t['remittanceno'] || '1') === '2');
+        const coll2  = colls.filter(c => (c['remittanceno'] || '1') === '2');
         const e2 = { total: 0, cash: 0, cheque: 0, gcash: 0 };
         [...tx2, ...coll2].forEach(r => {
-            e2.cash   += parseFloat(r['cashamount'] || (r['paymentmethod'] === 'Cash' ? (r['amount'] || r['total'] || 0) : 0));
+            e2.cash   += parseFloat(r['cashamount']   || (r['paymentmethod'] === 'Cash'   ? (r['amount'] || r['total'] || 0) : 0));
             e2.cheque += parseFloat(r['chequeamount'] || (r['paymentmethod'] === 'Cheque' ? (r['amount'] || r['total'] || 0) : 0));
-            e2.gcash  += parseFloat(r['gcashamount'] || (r['paymentmethod'] === 'GCash' ? (r['amount'] || r['total'] || 0) : 0));
+            e2.gcash  += parseFloat(r['gcashamount']  || (r['paymentmethod'] === 'GCash'  ? (r['amount'] || r['total'] || 0) : 0));
         });
         e2.total = e2.cash + e2.cheque + e2.gcash;
 
@@ -293,7 +271,7 @@ const Sheets = {
 };
 
 // =============================================================
-// SIMPLE IN-MEMORY + LOCALSTORAGE CACHE
+// SIMPLE IN-MEMORY CACHE
 // =============================================================
 const Cache = {
     _store: {},
@@ -353,19 +331,16 @@ const OfflineQueue = {
         if (!queue.length) return;
         let ok = 0;
         for (const item of queue) {
-            const urls = [CONFIG.SERVER_URL, CONFIG.BACKUP_SERVER_URL].filter(Boolean);
-            for (const base of urls) {
-                try {
-                    const r = await fetch(base + '/api/sheets-write', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(item.data),
-                        signal: AbortSignal.timeout(8000)
-                    });
-                    const result = await r.json();
-                    if (result.success) { this.markSynced(item.id); ok++; break; }
-                } catch(e) { /* try next */ }
-            }
+            try {
+                const r = await fetch(CONFIG.APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify(item.data),
+                    signal: AbortSignal.timeout(10000)
+                });
+                const result = await r.json();
+                if (result.success) { this.markSynced(item.id); ok++; }
+            } catch(e) { /* stay queued */ }
         }
         if (ok > 0) showToast('✅ Synced ' + ok + ' offline record' + (ok > 1 ? 's' : ''));
         this.updateBadge();
