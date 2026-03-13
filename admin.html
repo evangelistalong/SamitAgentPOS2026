@@ -1,207 +1,793 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#1a5c2e">
-    <title>Admin / Sync</title>
-    <link rel="stylesheet" href="base.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1a3a5c">
+<title>Admin — Samit POS</title>
+<link rel="stylesheet" href="base.css">
+<style>
+/* ── Admin overrides: blue-tinted theme to distinguish from agent app ── */
+:root {
+    --admin-accent: #60a5fa;
+    --admin-accent2: #3b82f6;
+    --admin-topbar1: #0f2744;
+    --admin-topbar2: #1a3a5c;
+}
+.topbar { background: linear-gradient(135deg, var(--admin-topbar1), var(--admin-topbar2)); border-bottom: 2px solid var(--admin-accent); }
+.topbar-back { color: var(--admin-accent); }
+.btn-admin { background: var(--admin-accent); color: #000; }
+.btn-admin:active { transform: scale(0.98); }
+.text-admin { color: var(--admin-accent); }
+
+/* ── PIN screen ── */
+#pinScreen {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 999; padding: 32px;
+}
+.pin-logo { font-size: 3rem; margin-bottom: 8px; }
+.pin-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 4px; color: var(--admin-accent); }
+.pin-sub { font-size: 0.85rem; color: var(--text2); margin-bottom: 32px; }
+.pin-dots { display: flex; gap: 14px; margin-bottom: 28px; }
+.pin-dot {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2px solid var(--border); background: transparent;
+    transition: background 0.15s;
+}
+.pin-dot.filled { background: var(--admin-accent); border-color: var(--admin-accent); }
+.pin-dot.error  { background: var(--red); border-color: var(--red); }
+.pin-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 260px; }
+.pin-key {
+    height: 64px; border-radius: 14px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text);
+    font-size: 1.4rem; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.1s;
+}
+.pin-key:active { background: var(--bg3); }
+.pin-key.del { font-size: 1rem; color: var(--text2); }
+.pin-key.empty { visibility: hidden; }
+.pin-error { color: var(--red); font-size: 0.85rem; margin-top: 16px; min-height: 20px; text-align: center; }
+
+/* ── Nav tabs ── */
+.nav-tabs {
+    display: flex; overflow-x: auto; gap: 0;
+    background: var(--bg2); border-bottom: 1px solid var(--border);
+    position: sticky; top: 54px; z-index: 90;
+    scrollbar-width: none;
+}
+.nav-tabs::-webkit-scrollbar { display: none; }
+.nav-tab {
+    flex-shrink: 0; padding: 10px 16px;
+    font-size: 0.8rem; color: var(--text2);
+    cursor: pointer; border-bottom: 2px solid transparent;
+    white-space: nowrap; transition: all 0.2s;
+}
+.nav-tab.active { color: var(--admin-accent); border-bottom-color: var(--admin-accent); font-weight: 600; }
+
+/* ── Section panels ── */
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* ── Items editor ── */
+.item-row {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px;
+    margin-bottom: 8px; display: flex; align-items: center; gap: 10px;
+}
+.item-row.dirty { border-color: var(--admin-accent); }
+.item-row-info { flex: 1; min-width: 0; }
+.item-row-name { font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item-row-meta { font-size: 0.75rem; color: var(--text2); margin-top: 2px; }
+.item-controls { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.ctrl-wrap { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.ctrl-label { font-size: 0.6rem; color: var(--text2); text-transform: uppercase; }
+.toggle {
+    position: relative; width: 40px; height: 22px;
+    background: var(--border); border-radius: 11px;
+    cursor: pointer; transition: background 0.2s;
+}
+.toggle.on { background: var(--green); }
+.toggle::after {
+    content: ''; position: absolute;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #fff; top: 3px; left: 3px; transition: left 0.2s;
+}
+.toggle.on::after { left: 21px; }
+.num-input {
+    width: 58px; text-align: center;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text);
+    font-size: 0.85rem; padding: 5px 4px;
+}
+.num-input:focus { border-color: var(--admin-accent); outline: none; }
+
+/* ── Customer rows ── */
+.cust-row {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 10px;
+}
+.cust-info { flex: 1; min-width: 0; }
+.cust-name { font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cust-code { font-size: 0.75rem; color: var(--text2); }
+.balance-pill {
+    font-size: 0.8rem; font-weight: 700; padding: 4px 10px;
+    border-radius: 20px; flex-shrink: 0;
+}
+.balance-pill.positive { background: rgba(239,68,68,0.15); color: var(--red); }
+.balance-pill.zero     { background: rgba(74,222,128,0.15); color: var(--green); }
+
+/* ── Activity feed ── */
+.activity-row {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; margin-bottom: 8px;
+}
+.activity-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.activity-agent { font-size: 0.72rem; color: var(--admin-accent); font-weight: 600; text-transform: uppercase; }
+.activity-time  { font-size: 0.72rem; color: var(--text2); }
+.activity-main  { font-weight: 600; font-size: 0.95rem; }
+.activity-sub   { font-size: 0.78rem; color: var(--text2); margin-top: 2px; }
+.type-pill {
+    font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: 600;
+}
+.type-tx   { background: rgba(96,165,250,0.15); color: var(--blue); }
+.type-coll { background: rgba(167,139,250,0.15); color: var(--purple); }
+.type-load { background: rgba(212,168,67,0.15);  color: var(--accent); }
+
+/* ── Save bar ── */
+.save-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--bg2); border-top: 1px solid var(--border);
+    padding: 12px 16px; display: none;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
+}
+.save-bar.show { display: block; }
+
+/* ── Adjust modal ── */
+.modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    display: none; align-items: center; justify-content: center; z-index: 500; padding: 20px;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 16px; padding: 24px; width: 100%; max-width: 360px;
+}
+.modal-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 16px; }
+
+/* ── Search ── */
+.search-wrap { position: relative; margin-bottom: 12px; }
+.search-wrap input { padding-left: 36px; }
+.search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text2); }
+
+/* ── Summary stats ── */
+.stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+.stat-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 8px; text-align: center;
+}
+.stat-box-val { font-size: 1.2rem; font-weight: 700; }
+.stat-box-lbl { font-size: 0.68rem; color: var(--text2); margin-top: 2px; }
+
+.label { font-size: 0.75rem; color: var(--text2); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; display: block; }
+.mb-2 { margin-bottom: 8px; }
+.mb-3 { margin-bottom: 12px; }
+.mt-2 { margin-top: 8px; }
+.divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+</style>
 </head>
 <body>
-<div class="topbar">
-    <a href="index.html" class="topbar-back">‹</a>
-    <h1>⚙️ Admin</h1>
-    <span class="topbar-action"></span>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- PIN SCREEN                                            -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div id="pinScreen">
+    <div class="pin-logo">🏪</div>
+    <div class="pin-title">Samit POS Admin</div>
+    <div class="pin-sub">Enter PIN to continue</div>
+    <div class="pin-dots">
+        <div class="pin-dot" id="d0"></div>
+        <div class="pin-dot" id="d1"></div>
+        <div class="pin-dot" id="d2"></div>
+        <div class="pin-dot" id="d3"></div>
+    </div>
+    <div class="pin-pad">
+        <div class="pin-key" onclick="pinPress('1')">1</div>
+        <div class="pin-key" onclick="pinPress('2')">2</div>
+        <div class="pin-key" onclick="pinPress('3')">3</div>
+        <div class="pin-key" onclick="pinPress('4')">4</div>
+        <div class="pin-key" onclick="pinPress('5')">5</div>
+        <div class="pin-key" onclick="pinPress('6')">6</div>
+        <div class="pin-key" onclick="pinPress('7')">7</div>
+        <div class="pin-key" onclick="pinPress('8')">8</div>
+        <div class="pin-key" onclick="pinPress('9')">9</div>
+        <div class="pin-key empty"></div>
+        <div class="pin-key" onclick="pinPress('0')">0</div>
+        <div class="pin-key del" onclick="pinDel()">⌫</div>
+    </div>
+    <div class="pin-error" id="pinError"></div>
 </div>
 
-<div class="content">
-
-    <!-- Server Status -->
-    <div class="card mb-4">
-        <div class="card-title">🖥️ Server Connection</div>
-        <div class="flex-between mb-2">
-            <span class="text-muted text-sm">Primary</span>
-            <span id="server1Status" class="text-sm">Checking...</span>
-        </div>
-        <div class="flex-between mb-3">
-            <span class="text-muted text-sm">Backup</span>
-            <span id="server2Status" class="text-sm">Checking...</span>
-        </div>
-        <button class="btn btn-secondary" onclick="checkServers()" style="font-size:0.85rem;padding:10px;">🔄 Re-check</button>
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- MAIN APP (hidden until PIN passed)                    -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div id="mainApp" style="display:none">
+    <div class="topbar">
+        <span style="width:40px;font-size:1.2rem;">🏪</span>
+        <h1>Admin Panel</h1>
+        <span style="width:40px;text-align:right;font-size:0.75rem;color:var(--admin-accent);cursor:pointer" onclick="lockAdmin()">Lock</span>
     </div>
 
-    <!-- Sync to Sheets -->
-    <div class="card mb-4" style="border-color:var(--accent);">
-        <div class="card-title">📤 Export to Google Sheets</div>
-        <p class="text-muted text-sm mb-3">
-            Pulls Items and Customers from the server database and writes them to Google Sheets.
-            Run this after adding new products or customers.
-        </p>
-
-        <button class="btn btn-primary mb-2" id="syncAllBtn" onclick="syncAll()">
-            🔄 Export Items + Customers
-        </button>
-
-        <div class="grid-2 gap-2">
-            <button class="btn btn-secondary" id="syncItemsBtn" onclick="syncItems()" style="font-size:0.8rem;">
-                📦 Items Only
-            </button>
-            <button class="btn btn-secondary" id="syncCustsBtn" onclick="syncCustomers()" style="font-size:0.8rem;">
-                👥 Customers Only
-            </button>
-        </div>
-
-        <div id="syncResult" class="hidden mt-3 card" style="background:var(--bg);">
-            <div id="syncResultText" class="text-sm"></div>
-        </div>
+    <div class="nav-tabs">
+        <div class="nav-tab active" onclick="showPanel('activity', this)">📊 Activity</div>
+        <div class="nav-tab" onclick="showPanel('items', this)">📦 Items</div>
+        <div class="nav-tab" onclick="showPanel('customers', this)">👥 Customers</div>
+        <div class="nav-tab" onclick="showPanel('checker', this)">✅ Checker</div>
+        <div class="nav-tab" onclick="showPanel('queue', this)">📱 Queue</div>
+        <div class="nav-tab" onclick="showPanel('config', this)">⚙️ Config</div>
     </div>
 
-    <!-- Offline Queue -->
-    <div class="card mb-4">
-        <div class="card-title">📱 Offline Queue</div>
-        <div class="flex-between mb-2">
-            <span class="text-muted text-sm">Pending records</span>
-            <span class="fw-bold" id="queueCount">0</span>
-        </div>
-        <div id="queueList" class="hidden mb-2" style="max-height:150px;overflow-y:auto;"></div>
-        <div class="grid-2 gap-2">
-            <button class="btn btn-secondary" onclick="refreshQueue()" style="font-size:0.8rem;">👁 View Queue</button>
-            <button class="btn btn-success" onclick="forceSyncQueue()" style="font-size:0.8rem;">⬆️ Sync Now</button>
-        </div>
-    </div>
+    <div class="content" style="padding-bottom:90px">
 
-    <!-- Config Info -->
-    <div class="card">
-        <div class="card-title">ℹ️ Config</div>
-        <div class="flex-between mb-1"><span class="text-muted text-sm">Agent</span><span class="text-sm fw-bold" id="cfgAgent">—</span></div>
-        <div class="flex-between mb-1"><span class="text-muted text-sm">Spreadsheet</span><span class="text-sm" id="cfgSheet" style="word-break:break-all;max-width:60%;text-align:right;">—</span></div>
-        <div class="flex-between mb-1"><span class="text-muted text-sm">Primary Server</span><span class="text-sm" id="cfgServer">—</span></div>
-        <div class="flex-between"><span class="text-muted text-sm">API Key</span><span class="text-sm text-muted" id="cfgKey">—</span></div>
-    </div>
+        <!-- ── ACTIVITY ─────────────────────────────── -->
+        <div id="panel-activity" class="panel active">
+            <div class="stats-grid" id="activityStats">
+                <div class="stat-box"><div class="stat-box-val" id="stTx">—</div><div class="stat-box-lbl">Sales</div></div>
+                <div class="stat-box"><div class="stat-box-val" id="stColl">—</div><div class="stat-box-lbl">Collections</div></div>
+                <div class="stat-box"><div class="stat-box-val text-admin" id="stTotal">—</div><div class="stat-box-lbl">Total Cash</div></div>
+            </div>
+            <div class="flex-between mb-2">
+                <span style="font-size:0.8rem;color:var(--text2)" id="activityDate">Today</span>
+                <button class="btn btn-secondary" onclick="loadActivity()" style="width:auto;padding:6px 14px;font-size:0.8rem;">🔄 Refresh</button>
+            </div>
+            <div id="activityFeed"><div class="empty-state"><div class="icon">⏳</div><p>Loading…</p></div></div>
+        </div>
 
+        <!-- ── ITEMS ────────────────────────────────── -->
+        <div id="panel-items" class="panel">
+            <div class="flex-between mb-2">
+                <span style="font-size:0.8rem;color:var(--text2)" id="itemsLabel">Loading…</span>
+                <button class="btn btn-secondary" onclick="loadItems()" style="width:auto;padding:6px 14px;font-size:0.8rem;">🔄 Refresh</button>
+            </div>
+            <div class="search-wrap">
+                <span class="search-icon">🔍</span>
+                <input type="text" class="input-field" id="itemSearch" placeholder="Search items…" oninput="renderItems()">
+            </div>
+            <div style="display:flex;gap:14px;font-size:0.72rem;color:var(--text2);margin-bottom:10px;">
+                <span>🏷 = Discountable &nbsp;💰 = Commission (₱)</span>
+            </div>
+            <div id="itemList"><div class="empty-state"><div class="icon">📦</div><p>Loading…</p></div></div>
+        </div>
+
+        <!-- ── CUSTOMERS ─────────────────────────────── -->
+        <div id="panel-customers" class="panel">
+            <div class="flex-between mb-2">
+                <span style="font-size:0.8rem;color:var(--text2)" id="custsLabel">Loading…</span>
+                <button class="btn btn-secondary" onclick="loadCustomers()" style="width:auto;padding:6px 14px;font-size:0.8rem;">🔄 Refresh</button>
+            </div>
+            <div class="search-wrap">
+                <span class="search-icon">🔍</span>
+                <input type="text" class="input-field" id="custSearch" placeholder="Search customers…" oninput="renderCustomers()">
+            </div>
+            <div id="custList"><div class="empty-state"><div class="icon">👥</div><p>Loading…</p></div></div>
+        </div>
+
+        <!-- ── CHECKER ───────────────────────────────── -->
+        <div id="panel-checker" class="panel">
+            <div class="card mb-3">
+                <label class="label">Agent Name</label>
+                <input type="text" class="input-field mb-2" id="checkerAgent" placeholder="Enter agent name">
+                <button class="btn btn-admin" onclick="loadCheckerItems()">Load Truck</button>
+            </div>
+            <div id="checkerContent" style="display:none">
+                <div class="stats-grid mb-3">
+                    <div class="stat-box"><div class="stat-box-val" id="chkTotal">0</div><div class="stat-box-lbl">Items</div></div>
+                    <div class="stat-box"><div class="stat-box-val" style="color:var(--green)" id="chkVerified">0</div><div class="stat-box-lbl">Verified</div></div>
+                    <div class="stat-box"><div class="stat-box-val" style="color:var(--red)" id="chkPending">0</div><div class="stat-box-lbl">Pending</div></div>
+                </div>
+                <div id="checkerList"></div>
+                <div class="card mt-3">
+                    <label class="label">Checker Name</label>
+                    <input type="text" class="input-field mb-2" id="checkerName" placeholder="Your name">
+                    <button class="btn btn-success" onclick="submitCheckerVerification()" style="width:100%">✅ Submit Verification</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── QUEUE ─────────────────────────────────── -->
+        <div id="panel-queue" class="panel">
+            <div class="card mb-3">
+                <div class="flex-between mb-3">
+                    <span style="font-size:0.9rem;font-weight:600;">Offline Queue</span>
+                    <span class="text-admin fw-bold" id="queueCount">0 pending</span>
+                </div>
+                <div id="queueFeed" style="max-height:400px;overflow-y:auto;"></div>
+                <hr class="divider">
+                <button class="btn btn-admin" onclick="forceSyncQueue()">⬆️ Sync All Now</button>
+            </div>
+        </div>
+
+        <!-- ── CONFIG ────────────────────────────────── -->
+        <div id="panel-config" class="panel">
+            <div class="card mb-3">
+                <div class="card-title">App Configuration</div>
+                <div class="flex-between mb-2"><span style="font-size:0.82rem;color:var(--text2)">Agent Name</span><span style="font-size:0.82rem;font-weight:600" id="cfgAgent">—</span></div>
+                <div class="flex-between mb-2"><span style="font-size:0.82rem;color:var(--text2)">Spreadsheet ID</span><span style="font-size:0.75rem;color:var(--text2);max-width:55%;text-align:right;word-break:break-all" id="cfgSheet">—</span></div>
+                <div class="flex-between mb-2"><span style="font-size:0.82rem;color:var(--text2)">Apps Script URL</span><span style="font-size:0.75rem;color:var(--text2);max-width:55%;text-align:right;word-break:break-all" id="cfgScript">—</span></div>
+                <div class="flex-between"><span style="font-size:0.82rem;color:var(--text2)">API Key</span><span style="font-size:0.75rem;color:var(--text2)" id="cfgKey">—</span></div>
+            </div>
+            <div class="card mb-3">
+                <div class="card-title">Admin PIN</div>
+                <label class="label">Current PIN: <span id="cfgPin" style="color:var(--admin-accent)">****</span></label>
+                <input type="number" class="input-field mb-2" id="newPinInput" placeholder="Enter new 4-digit PIN" maxlength="4">
+                <button class="btn btn-secondary" onclick="changePin()" style="font-size:0.85rem;padding:10px;">🔑 Change PIN</button>
+            </div>
+            <div class="card">
+                <div class="card-title">Cache</div>
+                <button class="btn btn-secondary" onclick="clearCache()" style="font-size:0.85rem;padding:10px;">🗑️ Clear Cache</button>
+            </div>
+        </div>
+
+    </div><!-- /content -->
+</div><!-- /mainApp -->
+
+<!-- ── Save bar (items) ── -->
+<div class="save-bar" id="saveBar">
+    <button class="btn btn-success" id="saveBtn" onclick="saveItemChanges()">💾 Save Item Changes</button>
 </div>
+
+<!-- ── Balance adjust modal ── -->
+<div class="modal-overlay" id="adjustModal">
+    <div class="modal">
+        <div class="modal-title">Adjust Balance</div>
+        <div style="font-weight:600;margin-bottom:4px" id="adjCustName">—</div>
+        <div style="font-size:0.82rem;color:var(--text2);margin-bottom:16px">Current: <span id="adjCurrent">—</span></div>
+        <label class="label">Adjustment Amount (+ to add debt, − to reduce)</label>
+        <input type="number" class="input-field mb-3" id="adjAmount" placeholder="e.g. -500 to reduce by ₱500">
+        <label class="label">Reason / Notes</label>
+        <input type="text" class="input-field mb-3" id="adjNotes" placeholder="e.g. Manual correction">
+        <div style="display:flex;gap:10px">
+            <button class="btn btn-secondary" onclick="closeAdjModal()" style="flex:1">Cancel</button>
+            <button class="btn btn-success" onclick="submitAdjust()" style="flex:1">Save</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="toast"></div>
 
 <script src="config.js"></script>
 <script src="sheets.js"></script>
 <script src="base.js"></script>
 <script>
-// Show config info
-document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('cfgAgent').textContent  = CONFIG.AGENT_NAME;
-    document.getElementById('cfgSheet').textContent  = CONFIG.SPREADSHEET_ID.slice(0, 20) + '…';
-    document.getElementById('cfgServer').textContent = CONFIG.SERVER_URL || 'Not set';
-    document.getElementById('cfgKey').textContent    = CONFIG.SHEETS_API_KEY
-        ? CONFIG.SHEETS_API_KEY.slice(0, 8) + '…' + CONFIG.SHEETS_API_KEY.slice(-4)
-        : 'Not set';
-    refreshQueue();
-    checkServers();
-});
+// ══════════════════════════════════════════════
+// PIN
+// ══════════════════════════════════════════════
+const DEFAULT_PIN = '1234';
+let pinBuffer = '';
 
-async function checkServers() {
-    const servers = [
-        { url: CONFIG.SERVER_URL,        id: 'server1Status' },
-        { url: CONFIG.BACKUP_SERVER_URL, id: 'server2Status' },
-    ];
-    for (const s of servers) {
-        const el = document.getElementById(s.id);
-        if (!s.url) { el.textContent = 'Not configured'; el.style.color = 'var(--text2)'; continue; }
-        el.textContent = 'Checking…';
-        try {
-            const r = await fetch(s.url + '/api/sheets-status', { signal: AbortSignal.timeout(4000) });
-            if (r.ok) {
-                el.textContent = '🟢 Online';
-                el.style.color = 'var(--green)';
-            } else {
-                el.textContent = '🟡 Reachable (' + r.status + ')';
-                el.style.color = 'var(--accent)';
-            }
-        } catch(e) {
-            el.textContent = '🔴 Offline';
-            el.style.color = 'var(--red)';
-        }
+function getPin() { return localStorage.getItem('admin_pin') || DEFAULT_PIN; }
+
+function pinPress(d) {
+    if (pinBuffer.length >= 4) return;
+    pinBuffer += d;
+    updatePinDots();
+    if (pinBuffer.length === 4) setTimeout(checkPin, 120);
+}
+
+function pinDel() {
+    pinBuffer = pinBuffer.slice(0, -1);
+    updatePinDots();
+    document.getElementById('pinError').textContent = '';
+}
+
+function updatePinDots(err) {
+    for (let i = 0; i < 4; i++) {
+        const dot = document.getElementById('d' + i);
+        dot.className = 'pin-dot';
+        if (err) dot.classList.add('error');
+        else if (i < pinBuffer.length) dot.classList.add('filled');
     }
 }
 
-async function callServer(path) {
-    const urls = [CONFIG.SERVER_URL, CONFIG.BACKUP_SERVER_URL].filter(Boolean);
-    for (const base of urls) {
-        try {
-            const r = await fetch(base + path, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                signal: AbortSignal.timeout(30000)
-            });
-            return await r.json();
-        } catch(e) { /* try next */ }
-    }
-    return { success: false, error: 'Could not reach server. Make sure the Flask app is running.' };
-}
-
-function showResult(result) {
-    const el = document.getElementById('syncResult');
-    const txt = document.getElementById('syncResultText');
-    el.classList.remove('hidden');
-    if (result.success) {
-        el.style.borderColor = 'var(--green)';
-        txt.innerHTML = '<span style="color:var(--green);">✅ ' + (result.message || 'Done') + '</span>';
+function checkPin() {
+    if (pinBuffer === getPin()) {
+        document.getElementById('pinScreen').style.display = 'none';
+        document.getElementById('mainApp').style.display = 'block';
+        initAdmin();
     } else {
-        el.style.borderColor = 'var(--red)';
-        txt.innerHTML = '<span style="color:var(--red);">❌ ' + (result.error || 'Failed') + '</span>';
-        if (result.results) {
-            const details = Object.entries(result.results).map(([k, v]) =>
-                `${k}: ${v.success ? '✅ ' + v.count : '❌ ' + v.error}`
-            ).join('<br>');
-            txt.innerHTML += '<br><span class="text-muted" style="font-size:0.75rem;">' + details + '</span>';
-        }
+        updatePinDots(true);
+        document.getElementById('pinError').textContent = 'Incorrect PIN';
+        setTimeout(() => {
+            pinBuffer = '';
+            updatePinDots();
+            document.getElementById('pinError').textContent = '';
+        }, 900);
     }
 }
 
-async function syncAll() {
-    const btn = document.getElementById('syncAllBtn');
-    btn.disabled = true; btn.textContent = '⏳ Exporting…';
-    document.getElementById('syncResult').classList.add('hidden');
-    const result = await callServer('/api/sheets/export-all');
-    showResult(result);
-    btn.disabled = false; btn.textContent = '🔄 Export Items + Customers';
+function lockAdmin() {
+    pinBuffer = '';
+    updatePinDots();
+    document.getElementById('pinScreen').style.display = 'flex';
+    document.getElementById('mainApp').style.display = 'none';
 }
 
-async function syncItems() {
-    const btn = document.getElementById('syncItemsBtn');
-    btn.disabled = true; btn.textContent = '⏳…';
-    const result = await callServer('/api/sheets/export-items');
-    showResult(result);
-    btn.disabled = false; btn.textContent = '📦 Items Only';
+function changePin() {
+    const val = document.getElementById('newPinInput').value.trim();
+    if (!/^\d{4}$/.test(val)) { showToast('PIN must be exactly 4 digits', true); return; }
+    localStorage.setItem('admin_pin', val);
+    document.getElementById('cfgPin').textContent = val;
+    document.getElementById('newPinInput').value = '';
+    showToast('✅ PIN updated');
 }
 
-async function syncCustomers() {
-    const btn = document.getElementById('syncCustsBtn');
-    btn.disabled = true; btn.textContent = '⏳…';
-    const result = await callServer('/api/sheets/export-customers');
-    showResult(result);
-    btn.disabled = false; btn.textContent = '👥 Customers Only';
+// ══════════════════════════════════════════════
+// PANEL SWITCHING
+// ══════════════════════════════════════════════
+function showPanel(name, el) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('panel-' + name).classList.add('active');
+    el.classList.add('active');
+    document.getElementById('saveBar').classList.remove('show');
+
+    if (name === 'activity')  loadActivity();
+    if (name === 'items')     loadItems();
+    if (name === 'customers') loadCustomers();
+    if (name === 'queue')     loadQueue();
+    if (name === 'config')    loadConfig();
 }
 
-function refreshQueue() {
-    const queue = OfflineQueue.getAll();
-    document.getElementById('queueCount').textContent = queue.length;
-    if (queue.length === 0) {
-        document.getElementById('queueList').classList.add('hidden');
+// ══════════════════════════════════════════════
+// ACTIVITY
+// ══════════════════════════════════════════════
+async function loadActivity() {
+    document.getElementById('activityFeed').innerHTML = '<div class="empty-state"><div class="icon">⏳</div><p>Loading…</p></div>';
+    const today = Sheets.today();
+    document.getElementById('activityDate').textContent = today;
+
+    const [txRows, collRows, loadRows] = await Promise.all([
+        Sheets.readSheet(CONFIG.SHEETS.TRANSACTIONS),
+        Sheets.readSheet(CONFIG.SHEETS.COLLECTIONS),
+        Sheets.readSheet(CONFIG.SHEETS.LOAD),
+    ]);
+
+    const parseSheet = (rows) => {
+        if (!rows || rows.length < 2) return [];
+        const [h, ...data] = rows;
+        const hi = h.map(x => x.trim().toLowerCase());
+        return data.filter(r => (r[hi.indexOf('date')] || '').slice(0, 10) === today)
+            .map(r => { const o = {}; hi.forEach((k,i) => o[k] = r[i]||''); return o; });
+    };
+
+    const txs   = parseSheet(txRows);
+    const colls = parseSheet(collRows);
+    const loads = parseSheet(loadRows);
+
+    const totalSales = txs.reduce((s, t) => s + parseFloat(t.total || 0), 0);
+    const totalColls = colls.reduce((s, c) => s + parseFloat(c.amount || 0), 0);
+
+    document.getElementById('stTx').textContent    = txs.length;
+    document.getElementById('stColl').textContent  = colls.length;
+    document.getElementById('stTotal').textContent = '₱' + (totalSales + totalColls).toLocaleString(undefined, {minimumFractionDigits:0});
+
+    // Build unified feed sorted by timestamp desc
+    const feed = [
+        ...txs.map(t => ({
+            type: 'tx', agent: t.agent, time: t.timestamp,
+            main: t.customername || 'Walk-in',
+            sub:  '₱' + parseFloat(t.total||0).toLocaleString(undefined,{minimumFractionDigits:2}) + ' · ' + (t.paymentmethod||''),
+        })),
+        ...colls.map(c => ({
+            type: 'coll', agent: c.agent, time: c.timestamp,
+            main: c.customername || '—',
+            sub:  '₱' + parseFloat(c.amount||0).toLocaleString(undefined,{minimumFractionDigits:2}) + ' collection · ' + (c.paymentmethod||''),
+        })),
+        ...loads.map(l => ({
+            type: 'load', agent: l.agent, time: l.timestamp || '',
+            main: (l.name || l.sku || '—'),
+            sub:  'Loaded ' + (l.loadqty||0) + ' pcs @ ₱' + parseFloat(l.price||0).toFixed(2),
+        })),
+    ].sort((a, b) => (b.time > a.time ? 1 : -1));
+
+    if (!feed.length) {
+        document.getElementById('activityFeed').innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>No activity today</p></div>';
         return;
     }
-    document.getElementById('queueList').innerHTML = queue.map(q => `
-        <div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:0.75rem;">
-            <span class="text-accent">${q.action}</span>
-            <span class="text-muted"> — ${q.createdAt ? q.createdAt.slice(0,16) : ''}</span>
+
+    const typeLabel = { tx: '💳 Sale', coll: '💰 Collection', load: '📦 Load' };
+    const typeClass = { tx: 'type-tx', coll: 'type-coll', load: 'type-load' };
+    document.getElementById('activityFeed').innerHTML = feed.map(f => `
+        <div class="activity-row">
+            <div class="activity-header">
+                <span class="activity-agent">${f.agent || '—'}</span>
+                <div style="display:flex;align-items:center;gap:8px">
+                    <span class="type-pill ${typeClass[f.type]}">${typeLabel[f.type]}</span>
+                    <span class="activity-time">${(f.time||'').slice(11,16)}</span>
+                </div>
+            </div>
+            <div class="activity-main">${f.main}</div>
+            <div class="activity-sub">${f.sub}</div>
         </div>`).join('');
-    document.getElementById('queueList').classList.remove('hidden');
+}
+
+// ══════════════════════════════════════════════
+// ITEMS
+// ══════════════════════════════════════════════
+let allItems = [], itemChanges = {};
+
+async function loadItems() {
+    document.getElementById('itemList').innerHTML = '<div class="empty-state"><div class="icon">⏳</div><p>Loading…</p></div>';
+    Cache.clear('items');
+    allItems = await Sheets.getAllItems();
+    itemChanges = {};
+    document.getElementById('saveBar').classList.remove('show');
+    document.getElementById('itemsLabel').textContent = allItems.length + ' items';
+    renderItems();
+}
+
+function renderItems() {
+    const q = (document.getElementById('itemSearch').value || '').toLowerCase();
+    const list = document.getElementById('itemList');
+    const filtered = allItems.filter(i => i.name.toLowerCase().includes(q) || i.sku.toLowerCase().includes(q));
+    if (!filtered.length) {
+        list.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><p>No items found</p></div>'; return;
+    }
+    list.innerHTML = filtered.map(item => {
+        const cur  = itemChanges[item.sku] || item;
+        const disc = cur.discountable !== false;
+        const comm = parseFloat(cur.commission) || 0;
+        const dirty = !!itemChanges[item.sku];
+        return `
+        <div class="item-row ${dirty ? 'dirty' : ''}">
+            <div class="item-row-info">
+                <div class="item-row-name">${item.name}</div>
+                <div class="item-row-meta">SKU: ${item.sku} &nbsp;·&nbsp; ₱${(item.wholesale||0).toFixed(2)}</div>
+            </div>
+            <div class="item-controls">
+                <div class="ctrl-wrap">
+                    <div class="toggle ${disc ? 'on' : ''}" onclick="toggleDisc('${item.sku}')"></div>
+                    <span class="ctrl-label">🏷 Disc</span>
+                </div>
+                <div class="ctrl-wrap">
+                    <input class="num-input" type="number" min="0" step="0.5" value="${comm}"
+                        onchange="setComm('${item.sku}', this.value)" onclick="this.select()">
+                    <span class="ctrl-label">💰 Comm</span>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function toggleDisc(sku) {
+    const item = allItems.find(i => i.sku === sku);
+    const cur  = itemChanges[sku] || { ...item };
+    cur.discountable = !cur.discountable;
+    itemChanges[sku] = cur;
+    document.getElementById('saveBar').classList.add('show');
+    renderItems();
+}
+
+function setComm(sku, val) {
+    const item = allItems.find(i => i.sku === sku);
+    const cur  = itemChanges[sku] || { ...item };
+    cur.commission = parseFloat(val) || 0;
+    itemChanges[sku] = cur;
+    document.getElementById('saveBar').classList.add('show');
+}
+
+async function saveItemChanges() {
+    const skus = Object.keys(itemChanges);
+    if (!skus.length) return;
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true; btn.textContent = '⏳ Saving ' + skus.length + ' items…';
+    let ok = 0;
+    for (const sku of skus) {
+        const c = itemChanges[sku];
+        const r = await Sheets.writeRows('item_update', { sku, discountable: c.discountable ? 'TRUE' : 'FALSE', commission: c.commission || 0 });
+        if (r.success || r.offline) {
+            const item = allItems.find(i => i.sku === sku);
+            if (item) { item.discountable = c.discountable; item.commission = c.commission; }
+            ok++;
+        }
+    }
+    itemChanges = {};
+    btn.disabled = false; btn.textContent = '💾 Save Item Changes';
+    document.getElementById('saveBar').classList.remove('show');
+    showToast('✅ Saved ' + ok + ' item' + (ok > 1 ? 's' : ''));
+    renderItems();
+}
+
+// ══════════════════════════════════════════════
+// CUSTOMERS
+// ══════════════════════════════════════════════
+let allCustomers = [];
+let adjSku = null;
+
+async function loadCustomers() {
+    document.getElementById('custList').innerHTML = '<div class="empty-state"><div class="icon">⏳</div><p>Loading…</p></div>';
+    Cache.clear('customers');
+    allCustomers = await Sheets.getCustomers();
+    allCustomers.sort((a, b) => b.balance - a.balance);
+    document.getElementById('custsLabel').textContent = allCustomers.length + ' customers';
+    renderCustomers();
+}
+
+function renderCustomers() {
+    const q = (document.getElementById('custSearch').value || '').toLowerCase();
+    const list = document.getElementById('custList');
+    const filtered = allCustomers.filter(c => c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q));
+    if (!filtered.length) {
+        list.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><p>No customers found</p></div>'; return;
+    }
+    list.innerHTML = filtered.map(c => `
+        <div class="cust-row" onclick="openAdjModal('${c.code}','${c.name.replace(/'/g,"\\'")}',${c.balance})">
+            <div class="cust-info">
+                <div class="cust-name">${c.name}</div>
+                <div class="cust-code">Code: ${c.code}</div>
+            </div>
+            <span class="balance-pill ${c.balance > 0 ? 'positive' : 'zero'}">
+                ₱${c.balance.toLocaleString(undefined,{minimumFractionDigits:2})}
+            </span>
+        </div>`).join('');
+}
+
+function openAdjModal(code, name, balance) {
+    adjSku = code;
+    document.getElementById('adjCustName').textContent = name;
+    document.getElementById('adjCurrent').textContent  = '₱' + balance.toLocaleString(undefined,{minimumFractionDigits:2});
+    document.getElementById('adjAmount').value  = '';
+    document.getElementById('adjNotes').value   = '';
+    document.getElementById('adjustModal').classList.add('show');
+}
+
+function closeAdjModal() {
+    document.getElementById('adjustModal').classList.remove('show');
+    adjSku = null;
+}
+
+async function submitAdjust() {
+    const amount = parseFloat(document.getElementById('adjAmount').value);
+    const notes  = document.getElementById('adjNotes').value.trim();
+    if (isNaN(amount)) { showToast('Enter a valid amount', true); return; }
+    const result = await Sheets.writeRows('balance_adjust', { customerCode: adjSku, adjustment: amount, notes });
+    if (result.success || result.offline) {
+        const c = allCustomers.find(x => x.code === adjSku);
+        if (c) c.balance += amount;
+        showToast('✅ Balance adjusted');
+        closeAdjModal();
+        renderCustomers();
+    } else {
+        showToast('Error: ' + (result.error || 'Failed'), true);
+    }
+}
+
+// ══════════════════════════════════════════════
+// CHECKER
+// ══════════════════════════════════════════════
+let checkerItems = [], checkerVerified = {}, checkerModQty = {};
+
+async function loadCheckerItems() {
+    const agent = document.getElementById('checkerAgent').value.trim();
+    if (!agent) { showToast('Enter agent name', true); return; }
+    showToast('Loading…');
+    const rows = await Sheets.readSheet(CONFIG.SHEETS.LOAD);
+    if (!rows || rows.length < 2) { showToast('No load data', true); return; }
+    const today = Sheets.today();
+    const [headers, ...data] = rows;
+    const h = headers.map(x => x.trim().toLowerCase());
+    checkerItems = data
+        .filter(r => (r[h.indexOf('date')]||'').slice(0,10) === today && (r[h.indexOf('agent')]||'').toLowerCase() === agent.toLowerCase())
+        .map(r => ({
+            loadId:   r[h.indexOf('loadid')]||'',
+            sku:      r[h.indexOf('sku')]||'',
+            name:     r[h.indexOf('name')]||'',
+            price:    parseFloat(r[h.indexOf('price')])||0,
+            loadQty:  parseInt(r[h.indexOf('loadqty')])||0,
+            verified: (r[h.indexOf('verified')]||'').toLowerCase()==='true',
+        }));
+    if (!checkerItems.length) { showToast('No load for ' + agent + ' today', true); return; }
+    checkerItems.forEach(i => { if (i.verified) checkerVerified[i.loadId] = true; checkerModQty[i.loadId] = i.loadQty; });
+    document.getElementById('checkerContent').style.display = 'block';
+    renderChecker();
+    showToast('Loaded ' + checkerItems.length + ' items');
+}
+
+function renderChecker() {
+    const verCount = checkerItems.filter(i => checkerVerified[i.loadId]).length;
+    document.getElementById('chkTotal').textContent    = checkerItems.length;
+    document.getElementById('chkVerified').textContent = verCount;
+    document.getElementById('chkPending').textContent  = checkerItems.length - verCount;
+    document.getElementById('checkerList').innerHTML = checkerItems.map(item => {
+        const isV = checkerVerified[item.loadId];
+        const qty = checkerModQty[item.loadId] ?? item.loadQty;
+        const mod = qty !== item.loadQty;
+        return `
+        <div class="item-row ${isV ? 'dirty' : ''}" style="${isV ? 'border-color:var(--green)' : ''}">
+            <div class="item-row-info">
+                <div class="item-row-name">${item.name}</div>
+                <div class="item-row-meta">SKU: ${item.sku} &nbsp;·&nbsp; ₱${item.price.toFixed(2)} ${mod ? '· <span style="color:var(--accent)">Adj: '+qty+'</span>' : ''}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                <button style="width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:1rem;cursor:pointer" onclick="chkQty('${item.loadId}',-1)">−</button>
+                <input class="num-input" style="width:48px" type="number" value="${qty}" onchange="chkSetQty('${item.loadId}',this.value)">
+                <button style="width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:1rem;cursor:pointer" onclick="chkQty('${item.loadId}',1)">+</button>
+                <div style="width:34px;height:34px;border-radius:50%;border:2px solid ${isV ? 'var(--green)' : 'var(--border)'};background:${isV ? 'var(--green)' : 'transparent'};cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;color:#fff" onclick="chkToggle('${item.loadId}')">${isV ? '✓' : ''}</div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function chkToggle(id) { checkerVerified[id] = !checkerVerified[id]; renderChecker(); }
+function chkQty(id, d)  { checkerModQty[id] = Math.max(0, (checkerModQty[id]||0) + d); renderChecker(); }
+function chkSetQty(id,v){ checkerModQty[id] = Math.max(0, parseInt(v)||0); renderChecker(); }
+
+async function submitCheckerVerification() {
+    const name = document.getElementById('checkerName').value.trim();
+    if (!name) { showToast('Enter checker name', true); return; }
+    const toVerify = checkerItems.filter(i => checkerVerified[i.loadId]);
+    if (!toVerify.length) { showToast('Verify at least one item', true); return; }
+    let ok = 0;
+    for (const item of toVerify) {
+        const r = await Sheets.writeRows('checker_verify', { loadId: item.loadId, checkerName: name, verifiedQty: checkerModQty[item.loadId] ?? item.loadQty });
+        if (r.success || r.offline) ok++;
+    }
+    showToast('✅ ' + ok + ' items verified by ' + name);
+    document.getElementById('checkerContent').style.display = 'none';
+    document.getElementById('checkerAgent').value = '';
+    checkerItems = []; checkerVerified = {}; checkerModQty = {};
+}
+
+// ══════════════════════════════════════════════
+// QUEUE
+// ══════════════════════════════════════════════
+function loadQueue() {
+    const queue = OfflineQueue.getAll();
+    document.getElementById('queueCount').textContent = queue.length + ' pending';
+    if (!queue.length) {
+        document.getElementById('queueFeed').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text2);font-size:0.85rem;">✅ Queue is empty</div>'; return;
+    }
+    document.getElementById('queueFeed').innerHTML = queue.map(q => `
+        <div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:0.8rem;">
+            <span class="text-admin" style="color:var(--admin-accent)">${q.action}</span>
+            <span style="color:var(--text2);margin-left:8px">${(q.createdAt||'').slice(0,16)}</span>
+        </div>`).join('');
 }
 
 async function forceSyncQueue() {
     if (!navigator.onLine) { showToast('📡 No connection', true); return; }
-    showToast('🔄 Syncing offline queue…');
+    showToast('🔄 Syncing…');
     await OfflineQueue.syncAll();
-    refreshQueue();
+    loadQueue();
+}
+
+// ══════════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════════
+function loadConfig() {
+    document.getElementById('cfgAgent').textContent  = CONFIG.AGENT_NAME;
+    document.getElementById('cfgSheet').textContent  = CONFIG.SPREADSHEET_ID;
+    document.getElementById('cfgScript').textContent = (CONFIG.APPS_SCRIPT_URL||'').slice(0,40) + '…';
+    document.getElementById('cfgKey').textContent    = CONFIG.SHEETS_API_KEY ? CONFIG.SHEETS_API_KEY.slice(0,8)+'…'+CONFIG.SHEETS_API_KEY.slice(-4) : '—';
+    document.getElementById('cfgPin').textContent    = getPin();
+}
+
+function clearCache() {
+    ['items','customers'].forEach(k => Cache.clear(k));
+    showToast('✅ Cache cleared');
+}
+
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+function initAdmin() {
+    loadActivity();
 }
 </script>
 </body>
