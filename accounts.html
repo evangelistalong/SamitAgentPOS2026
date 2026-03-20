@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#1a5c2e">
+    <title>Customer Accounts</title>
+    <link rel="stylesheet" href="base.css">
+    <style>
+        .bal-positive { color: var(--red); }
+        .bal-zero     { color: var(--green); }
+        .bal-negative { color: var(--accent); }
+
+        .acc-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 14px; background: var(--surface);
+            border: 1px solid var(--border); border-radius: var(--radius);
+            margin-bottom: 6px; cursor: pointer;
+        }
+        .acc-item:active { background: var(--bg3); }
+        .acc-item .acc-left .acc-name { font-size: 0.9rem; font-weight: 600; }
+        .acc-item .acc-left .acc-sub  { font-size: 0.72rem; color: var(--text2); margin-top: 2px; }
+        .acc-item .acc-right          { text-align: right; }
+        .acc-item .acc-right .acc-bal { font-size: 0.95rem; font-weight: 700; }
+        .acc-item .acc-right .acc-arr { font-size: 0.7rem; color: var(--text2); }
+
+        .tx-row {
+            padding: 10px 12px; border-radius: 8px;
+            background: rgba(255,255,255,0.03); margin-bottom: 6px;
+            font-size: 0.82rem;
+        }
+        .tx-row .tx-top  { display: flex; justify-content: space-between; margin-bottom: 4px; }
+        .tx-row .tx-date { color: var(--text2); font-size: 0.75rem; }
+        .tx-row .tx-inv  { color: var(--text2); font-size: 0.75rem; }
+        .tx-row .tx-bot  { display: flex; justify-content: space-between; }
+        .tx-row .tx-rem  { font-size: 0.72rem; color: var(--text2); margin-top: 3px; }
+
+        .summary-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+        .summary-card { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 10px; text-align: center; }
+        .summary-card .s-val   { font-size: 0.95rem; font-weight: 700; }
+        .summary-card .s-label { font-size: 0.68rem; color: var(--text2); margin-top: 2px; }
+
+        .total-banner {
+            background: linear-gradient(135deg, #0284c7, #0369a1);
+            border-radius: var(--radius); padding: 16px; text-align: center;
+            margin-bottom: 16px;
+        }
+        .total-banner .tb-label { font-size: 0.8rem; opacity: 0.8; }
+        .total-banner .tb-val   { font-size: 2rem; font-weight: 700; margin: 4px 0; }
+        .total-banner .tb-sub   { font-size: 0.75rem; opacity: 0.7; }
+    </style>
+</head>
+<body>
+<div class="topbar">
+    <a href="index.html" class="topbar-back">&#8249;</a>
+    <h1>&#128220; Customer Accounts</h1>
+    <button class="topbar-action" onclick="loadAccounts()" title="Refresh">&#128260;</button>
+</div>
+
+<div class="content">
+    <!-- Total Outstanding -->
+    <div class="total-banner">
+        <div class="tb-label">Total Outstanding Balance</div>
+        <div class="tb-val" id="totalBal">--</div>
+        <div class="tb-sub" id="custCount">-- customers with balance</div>
+    </div>
+
+    <!-- Search -->
+    <div style="margin-bottom:12px;">
+        <input type="text" class="input-field" id="accSearch"
+               placeholder="Search name, code or route..."
+               oninput="filterAccounts()">
+    </div>
+
+    <!-- Filter tabs -->
+    <div style="display:flex; gap:8px; margin-bottom:12px;">
+        <button id="fAll"  onclick="setFilter('all')"  class="btn btn-sm" style="flex:1; padding:6px;">All</button>
+        <button id="fOwes" onclick="setFilter('owes')" class="btn btn-sm btn-outline" style="flex:1; padding:6px;">With Balance</button>
+        <button id="fClear" onclick="setFilter('clear')" class="btn btn-sm btn-outline" style="flex:1; padding:6px;">Clear</button>
+    </div>
+
+    <div id="accList">
+        <div class="empty-state"><div class="icon">&#8987;</div><p>Loading...</p></div>
+    </div>
+</div>
+
+<!-- Customer Detail Modal -->
+<div class="modal-overlay" id="detailModal">
+    <div class="modal" style="max-height:88vh; display:flex; flex-direction:column;">
+        <div class="modal-handle"></div>
+        <div class="modal-title" id="detailTitle" style="margin-bottom:4px;">Customer Details</div>
+        <div style="font-size:0.75rem; color:var(--text2); text-align:center; margin-bottom:12px;" id="detailSub"></div>
+
+        <!-- Summary cards -->
+        <div class="summary-grid">
+            <div class="summary-card">
+                <div class="s-val text-red"    id="detailCredit">--</div>
+                <div class="s-label">Total Credit</div>
+            </div>
+            <div class="summary-card">
+                <div class="s-val text-green"  id="detailPaid">--</div>
+                <div class="s-label">Total Paid</div>
+            </div>
+            <div class="summary-card">
+                <div class="s-val"             id="detailBalance">--</div>
+                <div class="s-label">Balance</div>
+            </div>
+        </div>
+
+        <!-- Transaction list -->
+        <div style="font-size:0.8rem; font-weight:600; margin-bottom:8px; color:var(--text2);">
+            &#128220; Transaction History
+            <span id="txCount" style="font-weight:400;"></span>
+        </div>
+        <div id="detailTx" style="flex:1; overflow-y:auto; min-height:0;"></div>
+
+        <div style="padding-top:12px;">
+            <button class="btn btn-secondary btn-block" onclick="closeDetail()">Close</button>
+        </div>
+    </div>
+</div>
+
+<script src="config.js"></script>
+<script src="sheets.js"></script>
+<script src="base.js"></script>
+<script>
+let allAccounts = [];
+let currentFilter = 'all';
+
+// ── LOAD ─────────────────────────────────────────────────────
+
+async function loadAccounts() {
+    document.getElementById('accList').innerHTML =
+        '<div class="empty-state"><div class="icon">&#8987;</div><p>Loading history...</p></div>';
+
+    try {
+        // Fetch AccountHistory sheet
+        const SHEET_ID  = CONFIG.SPREADSHEET_ID;
+        const API_KEY   = CONFIG.API_KEY;
+        const sheetName = 'AccountHistory';
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(sheetName)}?key=${API_KEY}`;
+
+        const res  = await fetch(url);
+        const data = await res.json();
+        const rows = data.values || [];
+
+        if (rows.length < 2) {
+            document.getElementById('accList').innerHTML =
+                '<div class="empty-state"><div class="icon">&#128220;</div><p>No account history found.<br>Import AccountHistory.csv into your Google Sheet first.</p></div>';
+            return;
+        }
+
+        const headers = rows[0].map(h => h.toLowerCase().trim());
+        const iDate  = headers.indexOf('date');
+        const iCode  = headers.indexOf('customercode');
+        const iName  = headers.indexOf('customername');
+        const iCred  = headers.indexOf('credit');
+        const iColl  = headers.indexOf('collection');
+        const iBal   = headers.indexOf('balance');
+        const iInv   = headers.indexOf('invoice');
+        const iRem   = headers.indexOf('remarks');
+
+        // Group by customer code
+        const customerMap = {};
+        for (let i = 1; i < rows.length; i++) {
+            const r    = rows[i];
+            const code = r[iCode] || '';
+            const name = r[iName] || '';
+            if (!code) continue;
+
+            if (!customerMap[code]) {
+                customerMap[code] = { code, name, transactions: [], totalCredit: 0, totalCollection: 0 };
+            }
+            const credit = parseFloat(r[iCred]) || 0;
+            const coll   = parseFloat(r[iColl]) || 0;
+            customerMap[code].totalCredit     += credit;
+            customerMap[code].totalCollection += coll;
+            customerMap[code].transactions.push({
+                date:       r[iDate]  || '',
+                credit,
+                collection: coll,
+                balance:    parseFloat(r[iBal]) || 0,
+                invoice:    r[iInv]   || '',
+                remarks:    r[iRem]   || ''
+            });
+        }
+
+        // Also pull current balances from the Customers sheet (source of truth)
+        const custUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Customers?key=${API_KEY}`;
+        const custRes  = await fetch(custUrl);
+        const custData = await custRes.json();
+        const custRows = custData.values || [];
+        const chdr     = custRows[0] ? custRows[0].map(h => h.toLowerCase().trim()) : [];
+        const ciCode   = chdr.indexOf('code');
+        const ciName   = chdr.indexOf('name');
+        const ciBal    = chdr.indexOf('balance');
+        const custBalMap = {};
+        for (let i = 1; i < custRows.length; i++) {
+            const r = custRows[i];
+            const c = r[ciCode] || '';
+            if (c) custBalMap[c] = {
+                name:    r[ciName] || '',
+                balance: parseFloat(r[ciBal]) || 0
+            };
+        }
+
+        // Build final accounts array — use Customers sheet balance as current balance
+        allAccounts = Object.values(customerMap).map(c => {
+            const custInfo = custBalMap[c.code] || {};
+            return {
+                code:         c.code,
+                name:         custInfo.name || c.name,
+                balance:      custInfo.balance !== undefined ? custInfo.balance : (c.totalCredit - c.totalCollection),
+                totalCredit:  c.totalCredit,
+                totalCollection: c.totalCollection,
+                txCount:      c.transactions.length,
+                lastDate:     c.transactions.length ? c.transactions[c.transactions.length - 1].date : '',
+                transactions: c.transactions.sort((a, b) => b.date.localeCompare(a.date)) // newest first
+            };
+        });
+
+        // Update totals
+        const outstanding = allAccounts.filter(a => a.balance < 0);
+        const totalOwed   = outstanding.reduce((s, a) => s + Math.abs(a.balance), 0);
+        document.getElementById('totalBal').textContent   = fmt(totalOwed);
+        document.getElementById('custCount').textContent  = outstanding.length + ' customers with balance';
+
+        filterAccounts();
+
+    } catch(e) {
+        document.getElementById('accList').innerHTML =
+            `<div class="empty-state"><div class="icon">&#10060;</div><p>Error: ${e.message}</p></div>`;
+    }
+}
+
+// ── FILTER / RENDER ───────────────────────────────────────────
+
+function setFilter(f) {
+    currentFilter = f;
+    ['fAll','fOwes','fClear'].forEach(id => {
+        document.getElementById(id).classList.toggle('btn-outline', id !== 'f' + f.charAt(0).toUpperCase() + f.slice(1));
+    });
+    // Fix active class for fAll
+    document.getElementById('fAll').classList.toggle('btn-outline', f !== 'all');
+    filterAccounts();
+}
+
+function filterAccounts() {
+    const q = document.getElementById('accSearch').value.toLowerCase();
+
+    let list = allAccounts.filter(a => {
+        const matchQ = !q || a.name.toLowerCase().includes(q) || a.code.includes(q);
+        const matchF = currentFilter === 'all'   ? true :
+                       currentFilter === 'owes'  ? a.balance < 0 :
+                       currentFilter === 'clear' ? a.balance >= 0 : true;
+        return matchQ && matchF;
+    });
+
+    // Sort: those with balance first
+    list.sort((a, b) => {
+        if (a.balance < 0 && b.balance >= 0) return -1;
+        if (a.balance >= 0 && b.balance < 0) return 1;
+        return a.name.localeCompare(b.name);
+    });
+
+    if (!list.length) {
+        document.getElementById('accList').innerHTML =
+            '<div class="empty-state"><div class="icon">&#128269;</div><p>No customers found</p></div>';
+        return;
+    }
+
+    document.getElementById('accList').innerHTML = list.map(a => {
+        const balClass = a.balance < 0 ? 'bal-positive' : 'bal-zero';
+        const bar      = a.balance < 0
+            ? `<div style="width:3px; background:var(--red); border-radius:2px; margin-right:10px; align-self:stretch;"></div>`
+            : `<div style="width:3px; background:var(--green); border-radius:2px; margin-right:10px; align-self:stretch;"></div>`;
+        return `
+        <div class="acc-item" onclick="showDetail('${a.code}')">
+            ${bar}
+            <div class="acc-left" style="flex:1;">
+                <div class="acc-name">${a.name}</div>
+                <div class="acc-sub">${a.code} &bull; ${a.txCount} transactions${a.lastDate ? ' &bull; Last: ' + a.lastDate.slice(0,10) : ''}</div>
+            </div>
+            <div class="acc-right">
+                <div class="acc-bal ${balClass}">${fmt(Math.abs(a.balance))}</div>
+                <div class="acc-arr">${a.balance < 0 ? 'owes' : 'clear'} &#8250;</div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// ── DETAIL MODAL ──────────────────────────────────────────────
+
+function showDetail(code) {
+    const acc = allAccounts.find(a => a.code === code);
+    if (!acc) return;
+
+    document.getElementById('detailModal').classList.add('active');
+    document.getElementById('detailTitle').textContent    = acc.name;
+    document.getElementById('detailSub').textContent      = 'Code: ' + acc.code;
+    document.getElementById('detailCredit').textContent   = fmt(acc.totalCredit);
+    document.getElementById('detailPaid').textContent     = fmt(acc.totalCollection);
+    document.getElementById('detailBalance').textContent  = fmt(Math.abs(acc.balance));
+    document.getElementById('detailBalance').className    = 's-val ' + (acc.balance < 0 ? 'text-red' : 'text-green');
+    document.getElementById('txCount').textContent        = ' (' + acc.transactions.length + ')';
+
+    if (!acc.transactions.length) {
+        document.getElementById('detailTx').innerHTML =
+            '<div style="text-align:center; padding:20px; opacity:0.5;">No transactions</div>';
+        return;
+    }
+
+    document.getElementById('detailTx').innerHTML = acc.transactions.map(t => `
+        <div class="tx-row">
+            <div class="tx-top">
+                <span class="tx-date">${t.date ? t.date.slice(0,10) : '—'}</span>
+                <span class="tx-inv">${t.invoice ? '#' + t.invoice : ''}</span>
+            </div>
+            <div class="tx-bot">
+                <span>${t.credit  > 0 ? '<span class="text-red">&#8593; ' + fmt(t.credit) + '</span>' : ''}</span>
+                <span>${t.collection > 0 ? '<span class="text-green">&#8595; ' + fmt(t.collection) + '</span>' : ''}</span>
+            </div>
+            ${t.remarks ? `<div class="tx-rem">${t.remarks}</div>` : ''}
+        </div>
+    `).join('');
+}
+
+function closeDetail() {
+    document.getElementById('detailModal').classList.remove('active');
+}
+
+loadAccounts();
+</script>
+</body>
+</html>
