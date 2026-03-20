@@ -137,7 +137,7 @@ async function loadAccounts() {
     try {
         // Fetch AccountHistory sheet
         const SHEET_ID  = CONFIG.SPREADSHEET_ID;
-        const API_KEY   = CONFIG.API_KEY;
+        const API_KEY   = CONFIG.SHEETS_API_KEY;
         const sheetName = 'AccountHistory';
         const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(sheetName)}?key=${API_KEY}`;
 
