@@ -1,15 +1,53 @@
-{% extends 'base.html' %}
-{% block title %}New Sale{% endblock %}
-
-{% block body %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a5c2e">
+    <title>New Sale</title>
+    <link rel="stylesheet" href="base.css">
+    <style>
+        .receipt { background:#fff; color:#000; padding:20px; border-radius:var(--radius); font-family:'Courier New',monospace; font-size:0.8rem; line-height:1.5; }
+        .receipt-header { text-align:center; margin-bottom:12px; }
+        .receipt-line { display:flex; justify-content:space-between; }
+        .receipt-divider { border-top:1px dashed #000; margin:8px 0; }
+        .receipt-total { font-weight:bold; font-size:1rem; }
+        .cart-badge {
+            background: var(--red); color: #fff; border-radius: 50%;
+            font-size: 0.65rem; font-weight: 700; min-width: 18px; height: 18px;
+            display: inline-flex; align-items: center; justify-content: center;
+            margin-left: 4px; padding: 0 4px; vertical-align: middle;
+        }
+        .photo-btn {
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            padding: 9px 14px; border-radius: 8px; font-size: 0.82rem;
+            font-weight: 600; cursor: pointer; border: 1px solid var(--border);
+            background: rgba(96,165,250,0.1); color: var(--blue);
+            width: 100%; margin-top: 8px;
+        }
+        .photo-btn:active { background: rgba(96,165,250,0.25); }
+        .version-bar {
+            text-align: center; font-size: 0.68rem; color: var(--text2);
+            padding: 4px 0 2px; letter-spacing: 0.03em;
+        }
+        .footer-bar {
+            text-align: center; font-size: 0.65rem; color: var(--text2);
+            padding: 12px 0 20px; opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+<div class="version-bar" id="versionBar">v&#8203;</div>
 <div class="topbar">
-    <a href="/" class="topbar-back">‹</a>
-    <h1>🛒 New Sale <span id="cartBadge" class="cart-badge" style="display:none;">0</span></h1>
-    <a href="/api/transactions" class="topbar-action text-sm" onclick="event.preventDefault(); showHistory();">📋</a>
+    <a href="index.html" class="topbar-back">&#8249;</a>
+    <h1>&#x1f6d2; New Sale <span id="cartBadge" class="cart-badge" style="display:none;">0</span></h1>
+    <a href="#" class="topbar-action text-sm" onclick="showHistory();return false;">&#128203;</a>
 </div>
 
 <div class="content">
-    <!-- Customer Selection -->
+    <!-- Customer -->
     <div class="card mb-4">
         <div class="flex-between">
             <div class="card-title" style="margin:0;">Customer</div>
@@ -23,199 +61,124 @@
                 <span class="fw-bold" id="custName"></span>
                 <span class="text-muted text-sm" id="custBalance"></span>
             </div>
-            <button class="btn btn-sm btn-outline" onclick="clearCustomer()">✕</button>
+            <button class="btn btn-sm btn-outline" onclick="clearCustomer()">&#10005;</button>
         </div>
-        <div id="customerList" class="hidden" style="max-height:200px; overflow-y:auto; margin-top:8px;"></div>
+        <div id="customerList" class="hidden" style="max-height:200px;overflow-y:auto;margin-top:8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);"></div>
     </div>
-    
+
     <!-- Add Items -->
     <div class="card mb-4">
         <div class="card-title">Add Items</div>
         <div class="search-bar">
             <input type="text" class="input-field" id="itemSearch" placeholder="Search items..." autocomplete="off" oninput="searchItems()" onfocus="showItemDropdown()">
         </div>
-        <div id="itemResults" class="hidden" style="max-height:250px; overflow-y:auto;"></div>
+        <div id="itemResults" class="hidden" style="max-height:250px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);"></div>
     </div>
-    
-    <!-- Cart - Discountable Items -->
+
+    <!-- Cart - Discountable -->
     <div id="discountableSection">
         <div class="flex-between mb-2">
             <div class="card-title" style="margin:0;">Discountable Items</div>
-            <span class="text-accent text-sm fw-bold" id="discSubtotal">₱0.00</span>
+            <span class="text-accent text-sm fw-bold" id="discSubtotal">&#8369;0.00</span>
         </div>
         <div id="discountableCart"></div>
-        
-        <!-- Discount Toggles -->
         <div class="grid-3 mt-2 mb-4" id="discountToggles">
+            <div class="discount-toggle" onclick="toggleDiscount(0)" id="disc0">
+                <div class="discount-check" id="disc0Check"></div>
+                <div><div class="fw-bold text-sm" id="disc0Label">3%</div></div>
+            </div>
             <div class="discount-toggle" onclick="toggleDiscount(1)" id="disc1">
                 <div class="discount-check" id="disc1Check"></div>
-                <div>
-                    <div class="fw-bold text-sm">{{ settings.discount_1_label or '3%' }}</div>
-                </div>
+                <div><div class="fw-bold text-sm" id="disc1Label">2%</div></div>
             </div>
             <div class="discount-toggle" onclick="toggleDiscount(2)" id="disc2">
                 <div class="discount-check" id="disc2Check"></div>
-                <div>
-                    <div class="fw-bold text-sm">{{ settings.discount_2_label or '2%' }}</div>
-                </div>
-            </div>
-            <div class="discount-toggle" onclick="toggleDiscount(3)" id="disc3">
-                <div class="discount-check" id="disc3Check"></div>
-                <div>
-                    <div class="fw-bold text-sm">{{ settings.discount_3_label or '1%' }}</div>
-                </div>
+                <div><div class="fw-bold text-sm" id="disc2Label">1%</div></div>
             </div>
         </div>
     </div>
-    
-    <!-- Cart - Non-Discountable Items -->
+
+    <!-- Cart - Non-Discountable -->
     <div id="nonDiscountableSection">
         <div class="flex-between mb-2">
             <div class="card-title" style="margin:0;">Non-Discountable Items</div>
-            <span class="text-muted text-sm fw-bold" id="nonDiscSubtotal">₱0.00</span>
+            <span class="text-muted text-sm fw-bold" id="nonDiscSubtotal">&#8369;0.00</span>
         </div>
         <div id="nonDiscountableCart"></div>
     </div>
-    
+
     <!-- Totals -->
-    <div class="card mt-4" style="border-color: var(--accent);">
-        <div class="flex-between mb-2">
-            <span class="text-muted">Subtotal</span>
-            <span id="subtotal">₱0.00</span>
-        </div>
+    <div class="card mt-4" style="border-color:var(--accent);">
+        <div class="flex-between mb-2"><span class="text-muted">Subtotal</span><span id="subtotal">&#8369;0.00</span></div>
         <div class="flex-between mb-2" id="discountRow" style="display:none;">
             <span class="text-red">Discount (<span id="discountPctLabel">0%</span>)</span>
-            <span class="text-red" id="discountAmt">-₱0.00</span>
+            <span class="text-red" id="discountAmt">-&#8369;0.00</span>
         </div>
         <div class="divider"></div>
-        <div class="flex-between mb-2">
-            <span class="fw-bold text-lg">Total</span>
-            <span class="fw-bold text-lg text-accent" id="totalAmount">₱0.00</span>
-        </div>
-        <div class="flex-between" id="prevBalRow" style="display:none;">
-            <span class="text-muted">Previous Balance</span>
-            <span class="text-red" id="prevBalAmt">₱0.00</span>
-        </div>
-        <div class="flex-between mt-2" id="grandTotalRow" style="display:none;">
-            <span class="fw-bold">Grand Total</span>
-            <span class="fw-bold text-accent" id="grandTotal">₱0.00</span>
-        </div>
+        <div class="flex-between mb-2"><span class="fw-bold text-lg">Total</span><span class="fw-bold text-lg text-accent" id="totalAmount">&#8369;0.00</span></div>
+        <div class="flex-between" id="prevBalRow" style="display:none;"><span class="text-muted">Previous Balance</span><span class="text-red" id="prevBalAmt">&#8369;0.00</span></div>
+        <div class="flex-between mt-2" id="grandTotalRow" style="display:none;"><span class="fw-bold">Grand Total</span><span class="fw-bold text-accent" id="grandTotal">&#8369;0.00</span></div>
     </div>
-    
-    <!-- Previous Balance (editable, auto-filled from customer account) -->
+
+    <!-- Previous Balance Card -->
     <div id="prevBalSection" class="hidden">
-        <div class="card mt-2" style="border-color: var(--red); border-width: 1px;">
+        <div class="card mt-2" style="border-color:var(--red);">
             <div class="flex-between mb-2">
-                <div>
-                    <span class="fw-bold text-sm">Previous Balance</span>
-                    <span class="text-muted text-sm" id="prevBalSource">(from file)</span>
-                </div>
-                <button class="btn btn-sm btn-outline" id="prevBalEditBtn" onclick="editPrevBalance()" style="font-size:0.7rem; padding:3px 8px;">✏️ Edit</button>
+                <span class="fw-bold text-sm">Previous Balance</span>
+                <button class="btn btn-sm btn-outline" id="prevBalEditBtn" onclick="editPrevBalance()" style="font-size:0.7rem;padding:3px 8px;">&#9999;&#65039; Edit</button>
             </div>
-            <div class="flex-between">
-                <div style="flex:1;">
-                    <input type="number" class="input-field" id="prevBalInput" step="0.01" min="0"
-                        style="font-size:1.1rem; font-weight:700; color:var(--red); text-align:right; background:transparent; border:none; padding:4px;"
-                        readonly oninput="updateTotals()">
-                </div>
-            </div>
-            <div id="prevBalNote" class="text-muted text-sm hidden" style="margin-top:4px;">
-                Tap Edit to manually adjust if balance on file is incorrect
-            </div>
+            <input type="number" class="input-field" id="prevBalInput" step="0.01" min="0"
+                style="font-size:1.1rem;font-weight:700;color:var(--red);text-align:right;background:transparent;border:none;padding:4px;"
+                readonly oninput="updateTotals()">
         </div>
     </div>
-    
-    <!-- Proceed Button -->
-    <button class="btn btn-primary mt-4" id="proceedBtn" onclick="showPayment()" disabled>
-        💳 Proceed to Payment
-    </button>
+
+    <button class="btn btn-primary mt-4" id="proceedBtn" onclick="showPayment()" disabled>&#x1f4b3; Proceed to Payment</button>
+
+    <div class="footer-bar" id="footerBar">Created by Paul Evangelista</div>
 </div>
 
 <!-- Payment Modal -->
 <div class="modal-overlay" id="paymentModal">
     <div class="modal">
         <div class="modal-handle"></div>
-        <div class="modal-title">💳 Payment</div>
-        
-        <div class="card mb-4" style="background: var(--accent); color: #000; text-align: center;">
+        <div class="modal-title">&#x1f4b3; Payment</div>
+        <div class="card mb-4" style="background:var(--accent);color:#000;text-align:center;">
             <div class="text-sm">Amount Due</div>
-            <div class="text-xl fw-bold" id="payDue">₱0.00</div>
+            <div class="text-xl fw-bold" id="payDue">&#8369;0.00</div>
         </div>
-        
-        <!-- Payment Method -->
         <div class="card-title">Payment Method</div>
         <div class="grid-2 mb-4 gap-2">
-            <button class="btn btn-sm" id="payMethodCash" onclick="setPayMethod('Cash')">💵 Cash</button>
-            <button class="btn btn-sm btn-outline" id="payMethodCheque" onclick="setPayMethod('Cheque')">📝 Cheque</button>
-            <button class="btn btn-sm btn-outline" id="payMethodGCash" onclick="setPayMethod('GCash')">📱 GCash</button>
-            <button class="btn btn-sm btn-outline" id="payMethodCredit" onclick="setPayMethod('Credit')">🏦 Credit</button>
-            <button class="btn btn-sm btn-outline" id="payMethodSplit" onclick="setPayMethod('Split')" style="grid-column: span 2;">🔀 Split Payment</button>
+            <button class="btn btn-sm btn-primary" id="payMethodCash" onclick="setPayMethod('Cash')">&#x1f4b5; Cash</button>
+            <button class="btn btn-sm btn-outline" id="payMethodCheque" onclick="setPayMethod('Cheque')">&#x1f4dd; Cheque</button>
+            <button class="btn btn-sm btn-outline" id="payMethodGCash" onclick="setPayMethod('GCash')">&#x1f4f1; GCash</button>
+            <button class="btn btn-sm btn-outline" id="payMethodCredit" onclick="setPayMethod('Credit')">&#x1f3e6; Credit</button>
+            <button class="btn btn-sm btn-outline" id="payMethodSplit" onclick="setPayMethod('Split')" style="grid-column:span 2;">&#x1f500; Split</button>
         </div>
-        
-        <!-- Cash input -->
-        <div id="cashInput">
-            <div class="input-group">
-                <label>Cash Amount</label>
-                <input type="number" class="input-field" id="payCash" step="0.01" oninput="calcPayment()" placeholder="0.00">
-            </div>
-        </div>
-        
-        <!-- Cheque input -->
+        <div id="cashInput"><div class="input-group"><label>Cash Amount</label><input type="number" class="input-field" id="payCash" step="0.01" oninput="calcPayment()" placeholder="0.00" inputmode="decimal"></div></div>
         <div id="chequeInput" class="hidden">
-            <div class="input-group">
-                <label>Cheque Amount</label>
-                <input type="number" class="input-field" id="payCheque" step="0.01" oninput="calcPayment()" placeholder="0.00">
-            </div>
-            <div class="input-group">
-                <label>Cheque Number</label>
-                <input type="text" class="input-field" id="payChequeNum" placeholder="Cheque #">
-            </div>
+            <div class="input-group"><label>Cheque Amount</label><input type="number" class="input-field" id="payCheque" step="0.01" oninput="calcPayment()" placeholder="0.00" inputmode="decimal"></div>
+            <div class="input-group"><label>Cheque #</label><input type="text" class="input-field" id="payChequeNum" placeholder="Cheque #"></div>
         </div>
-        
-        <!-- GCash input -->
         <div id="gcashInput" class="hidden">
-            <div class="input-group">
-                <label>GCash Amount</label>
-                <input type="number" class="input-field" id="payGCash" step="0.01" oninput="calcPayment()" placeholder="0.00">
-            </div>
-            <div class="input-group">
-                <label>GCash Reference</label>
-                <input type="text" class="input-field" id="payGCashRef" placeholder="Ref #">
-            </div>
+            <div class="input-group"><label>GCash Amount</label><input type="number" class="input-field" id="payGCash" step="0.01" oninput="calcPayment()" placeholder="0.00" inputmode="decimal"></div>
+            <div class="input-group"><label>GCash Ref</label><input type="text" class="input-field" id="payGCashRef" placeholder="Ref #"></div>
         </div>
-        
-        <!-- Credit -->
         <div id="creditInput" class="hidden">
             <div class="input-group">
-                <label>Credit Amount <span id="creditAutoLabel" style="font-weight:400; font-size:0.7rem; color:var(--accent); display:none;">(auto-computed)</span></label>
-                <input type="number" class="input-field" id="payCredit" step="0.01" oninput="calcPayment()" placeholder="0.00">
+                <label>Credit Amount <span id="creditAutoLabel" style="font-weight:400;font-size:0.7rem;color:var(--accent);display:none;">(auto)</span></label>
+                <input type="number" class="input-field" id="payCredit" step="0.01" oninput="calcPayment()" placeholder="0.00" inputmode="decimal">
             </div>
         </div>
-        
-        <!-- Change/Balance -->
         <div class="card mt-2">
-            <div class="flex-between" id="changeRow" style="display:none;">
-                <span>Change</span>
-                <span class="text-green fw-bold" id="payChange">₱0.00</span>
-            </div>
-            <div class="flex-between" id="creditBalRow" style="display:none;">
-                <span>New Balance</span>
-                <span class="text-red fw-bold" id="payNewBal">₱0.00</span>
-            </div>
-            <div class="flex-between" id="remainingRow" style="display:none;">
-                <span class="text-red">Remaining</span>
-                <span class="text-red fw-bold" id="payRemaining">₱0.00</span>
-            </div>
+            <div class="flex-between" id="changeRow" style="display:none;"><span>Change</span><span class="text-green fw-bold" id="payChange">&#8369;0.00</span></div>
+            <div class="flex-between" id="creditBalRow" style="display:none;"><span>New Balance</span><span class="text-red fw-bold" id="payNewBal">&#8369;0.00</span></div>
+            <div class="flex-between" id="remainingRow" style="display:none;"><span class="text-red">Remaining</span><span class="text-red fw-bold" id="payRemaining">&#8369;0.00</span></div>
         </div>
-        
-        <div class="input-group mt-4">
-            <label>Notes</label>
-            <input type="text" class="input-field" id="payNotes" placeholder="Optional notes...">
-        </div>
-        
+        <div class="input-group mt-4"><label>Notes</label><input type="text" class="input-field" id="payNotes" placeholder="Optional"></div>
         <div class="grid-2 mt-4">
             <button class="btn btn-secondary" onclick="closePayment()">Cancel</button>
-            <button class="btn btn-success" id="completeBtn" onclick="completeSale()" disabled>✅ Complete</button>
+            <button class="btn btn-success" id="completeBtn" onclick="completeSale()" disabled>&#x2705; Complete</button>
         </div>
     </div>
 </div>
@@ -224,29 +187,30 @@
 <div class="modal-overlay" id="receiptModal">
     <div class="modal">
         <div class="modal-handle"></div>
-        <div class="modal-title">🧾 Receipt</div>
+        <div class="modal-title">&#x1f9fe; Receipt</div>
         <div id="receiptContent"></div>
         <div class="grid-2 mt-4">
-            <button class="btn btn-secondary" onclick="closeReceipt()">Done</button>
-            <button class="btn btn-primary" onclick="shareReceipt()">📤 Share</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('receiptModal').classList.remove('active')">Done</button>
+            <button class="btn btn-primary" onclick="shareReceipt()">&#128228; Share</button>
         </div>
+        <button class="photo-btn" id="receiptPhotoBtn" onclick="takeReceiptPhoto()">&#128247; Take Photo of Receipt</button>
     </div>
 </div>
 
-<!-- Quantity Modal -->
+<!-- Qty Modal -->
 <div class="modal-overlay" id="qtyModal">
     <div class="modal">
         <div class="modal-handle"></div>
         <div class="modal-title" id="qtyModalTitle">Enter Quantity</div>
         <div class="text-center mt-4 mb-4">
-            <div class="qty-control" style="justify-content: center; display: inline-flex;">
-                <button class="qty-btn" onclick="qtyModalAdjust(-10)" style="width:60px;height:60px;font-size:1.5rem;">−10</button>
+            <div class="qty-control" style="justify-content:center;display:inline-flex;">
+                <button class="qty-btn" onclick="qtyModalAdjust(-10)" style="width:60px;height:60px;font-size:1.4rem;">&#8722;10</button>
                 <input type="number" class="qty-value" id="qtyModalValue" value="1" min="1" style="width:100px;height:60px;font-size:1.5rem;text-align:center;" onclick="this.select()">
-                <button class="qty-btn" onclick="qtyModalAdjust(10)" style="width:60px;height:60px;font-size:1.5rem;">+10</button>
+                <button class="qty-btn" onclick="qtyModalAdjust(10)" style="width:60px;height:60px;font-size:1.4rem;">+10</button>
             </div>
         </div>
         <div class="grid-2">
-            <button class="btn btn-secondary" onclick="closeQtyModal()">Cancel</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('qtyModal').classList.remove('active');pendingItem=null;">Cancel</button>
             <button class="btn btn-primary" onclick="confirmQtyModal()">Add to Cart</button>
         </div>
     </div>
@@ -256,7 +220,7 @@
 <div class="modal-overlay" id="historyModal">
     <div class="modal">
         <div class="modal-handle"></div>
-        <div class="modal-title">📋 Today's Transactions</div>
+        <div class="modal-title">&#128203; Today's Transactions</div>
         <div id="historyList"></div>
         <button class="btn btn-secondary mt-4" onclick="document.getElementById('historyModal').classList.remove('active')">Close</button>
     </div>
@@ -266,315 +230,196 @@
 <div class="modal-overlay" id="addCustModal">
     <div class="modal">
         <div class="modal-handle"></div>
-        <div class="modal-title">➕ New Customer</div>
-        <div class="mb-3">
-            <label class="text-sm text-muted">Customer Name *</label>
-            <input type="text" class="input-field" id="newCustName" placeholder="Enter customer name">
-        </div>
-        <div class="mb-3">
-            <label class="text-sm text-muted">Route</label>
-            <input type="text" class="input-field" id="newCustRoute" placeholder="Route (optional)">
-        </div>
+        <div class="modal-title">&#10133; New Customer</div>
+        <div class="mb-3"><label class="text-sm text-muted">Customer Name *</label><input type="text" class="input-field" id="newCustName" placeholder="Enter customer name"></div>
+        <div class="mb-3"><label class="text-sm text-muted">Route</label><input type="text" class="input-field" id="newCustRoute" placeholder="Route (optional)"></div>
         <div class="grid-2">
             <button class="btn btn-secondary" onclick="document.getElementById('addCustModal').classList.remove('active')">Cancel</button>
             <button class="btn btn-primary" onclick="saveNewCustomer()">Save</button>
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
+<script src="config.js"></script>
+<script src="sheets.js"></script>
+<script src="base.js"></script>
+<script src="version.js"></script>
 <script>
-    // === STATE ===
-    let cart = [];
-    let customers = [];
-    let selectedCustomer = null;
-    let discounts = [false, false, false];
-    let includePrevBal = false;
-    let payMethod = 'Cash';
-    let pendingItem = null;
-    
-    const RATES = [
-        {{ settings.discount_1_rate or 3 }},
-        {{ settings.discount_2_rate or 2 }},
-        {{ settings.discount_3_rate or 1 }}
-    ];
-    
-    // === CUSTOMERS ===
-    async function loadCustomers() {
-        customers = await apiFetch('/api/customers');
-        if (customers.error) customers = [];
+// Show version + footer
+document.addEventListener('DOMContentLoaded', () => {
+    if (typeof APP_VERSION !== 'undefined') {
+        document.getElementById('versionBar').textContent = 'v' + APP_VERSION;
+        document.getElementById('footerBar').textContent = 'Created by ' + APP_BUILT_BY + ' \u00b7 v' + APP_VERSION;
     }
-    
-    function showCustomerList() {
-        document.getElementById('customerList').classList.remove('hidden');
-        filterCustomers();
-    }
-    
-    function filterCustomers() {
-        const q = document.getElementById('customerSearch').value.toLowerCase();
-        const filtered = customers.filter(c => 
-            c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q)
-        ).slice(0, 20);
-        
-        const el = document.getElementById('customerList');
-        if (!filtered.length && q.length > 0) {
-            el.innerHTML = '<div class="text-center text-muted" style="padding:12px;">No match found. <a href="#" onclick="showAddCustomer();return false;" style="color:var(--accent);">+ Add new customer</a></div>';
-            return;
-        }
-        el.innerHTML = filtered.map(c => {
-            const owes = c.balance < 0;
-            const balDisplay = owes ? '<span class="text-red text-sm">' + fmt(Math.abs(c.balance)) + '</span>' : 
-                              (c.balance > 0 ? '<span class="text-green text-sm">+' + fmt(c.balance) + '</span>' : '');
-            return `
-            <div class="list-item" onclick="selectCustomer('${c.code}', '${c.name.replace(/'/g, "\\'")}', ${c.balance})" style="padding:10px 12px; margin-bottom:4px;">
-                <div class="list-item-info">
-                    <div class="list-item-name" style="font-size:0.9rem;">${c.name}</div>
-                    <div class="list-item-sub">${c.route || c.code}</div>
-                </div>
-                <div class="list-item-right">
-                    ${balDisplay}
-                </div>
-            </div>`;
-        }).join('');
-    }
-    
-    function showAddCustomer() {
-        document.getElementById('newCustName').value = document.getElementById('customerSearch').value || '';
-        document.getElementById('newCustRoute').value = '';
-        document.getElementById('addCustModal').classList.add('active');
-    }
-    
-    async function saveNewCustomer() {
-        const name = document.getElementById('newCustName').value.trim();
-        const route = document.getElementById('newCustRoute').value.trim();
-        if (!name) { showToast('Enter customer name', true); return; }
-        
-        const result = await apiPost('/api/customers', { name, route });
-        if (result.error) { showToast('Error: ' + result.error, true); return; }
-        
-        document.getElementById('addCustModal').classList.remove('active');
-        showToast('✓ Customer added: ' + name);
-        await loadCustomers();
-        selectCustomer(result.code, result.name, 0);
-    }
-    
-    function selectCustomer(code, name, balance) {
-        selectedCustomer = {code, name, balance};
-        document.getElementById('customerSearch').classList.add('hidden');
-        document.getElementById('customerList').classList.add('hidden');
-        document.getElementById('selectedCustomer').classList.remove('hidden');
-        document.getElementById('custName').textContent = name;
-        
-        // Show balance info (negative = owes)
-        const owes = balance < 0;
-        if (owes) {
-            document.getElementById('custBalance').innerHTML = ' • <span style="color:var(--red)">Bal: ' + fmt(Math.abs(balance)) + '</span>';
-        } else if (balance > 0) {
-            document.getElementById('custBalance').innerHTML = ' • <span style="color:var(--green)">Credit: ' + fmt(balance) + '</span>';
-        } else {
-            document.getElementById('custBalance').textContent = '';
-        }
-        
-        // Show previous balance section with editable field
-        if (owes) {
-            document.getElementById('prevBalSection').classList.remove('hidden');
-            document.getElementById('prevBalInput').value = Math.abs(balance).toFixed(2);
-            document.getElementById('prevBalInput').readOnly = true;
-            document.getElementById('prevBalSource').textContent = '(from file)';
-            document.getElementById('prevBalEditBtn').textContent = '✏️ Edit';
-            document.getElementById('prevBalNote').classList.add('hidden');
-            includePrevBal = true;
-        } else {
-            // Overpaid or zero — show section with 0 (they can edit if needed)
-            document.getElementById('prevBalSection').classList.remove('hidden');
-            document.getElementById('prevBalInput').value = '0.00';
-            document.getElementById('prevBalInput').readOnly = true;
-            document.getElementById('prevBalSource').textContent = balance > 0 ? '(overpaid on file — set to 0)' : '(no balance)';
-            document.getElementById('prevBalEditBtn').textContent = '✏️ Edit';
-            document.getElementById('prevBalNote').classList.add('hidden');
-            includePrevBal = false;
-        }
-        
-        updateTotals();
-    }
-    
-    function clearCustomer() {
-        selectedCustomer = null;
-        includePrevBal = false;
-        document.getElementById('customerSearch').classList.remove('hidden');
-        document.getElementById('customerSearch').value = '';
-        document.getElementById('selectedCustomer').classList.add('hidden');
-        document.getElementById('prevBalSection').classList.add('hidden');
-        document.getElementById('prevBalInput').value = '0';
-        updateTotals();
-    }
-    
-    function editPrevBalance() {
-        const input = document.getElementById('prevBalInput');
-        if (input.readOnly) {
-            // Switch to edit mode
-            input.readOnly = false;
-            input.style.border = '1px solid var(--accent)';
-            input.style.background = 'var(--bg2)';
-            input.style.borderRadius = '6px';
-            input.style.padding = '6px';
-            input.focus();
-            input.select();
-            document.getElementById('prevBalEditBtn').textContent = '✓ Done';
-            document.getElementById('prevBalSource').textContent = '(manual)';
-            document.getElementById('prevBalNote').classList.remove('hidden');
-        } else {
-            // Switch back to read-only
-            input.readOnly = true;
-            input.style.border = 'none';
-            input.style.background = 'transparent';
-            input.style.padding = '4px';
-            document.getElementById('prevBalEditBtn').textContent = '✏️ Edit';
-            document.getElementById('prevBalNote').classList.add('hidden');
-            updateTotals();
-        }
-    }
-    
-    function getPrevBalance() {
-        if (!includePrevBal) return 0;
-        return parseFloat(document.getElementById('prevBalInput').value) || 0;
-    }
-    
-    // === ITEMS SEARCH ===
-    let allItems = [];
-    let searchTimeout;
-    
-    async function loadAllItems() {
-        allItems = await apiFetch('/api/loaded-items');
-        if (allItems.error) {
-            console.error('Items load error:', allItems.error);
-            allItems = [];
-            showToast('Error loading items', true);
-        }
-    }
-    
-    function showItemDropdown() {
-        const q = document.getElementById('itemSearch').value.trim().toLowerCase();
-        let filtered = allItems;
-        
-        if (q.length > 0) {
-            filtered = allItems.filter(item => 
-                item.name.toLowerCase().includes(q) || 
-                item.sku.toLowerCase().includes(q) ||
-                (item.itemId && item.itemId.toLowerCase().includes(q))
-            );
-        }
-        
-        // Only show items with remaining stock
-        const available = filtered.filter(i => i.remaining > 0);
-        const soldOut = filtered.filter(i => i.remaining <= 0);
-        
-        const el = document.getElementById('itemResults');
-        if (!filtered.length) {
-            el.innerHTML = allItems.length 
-                ? '<div class="text-center text-muted" style="padding:12px;">No matching items</div>'
-                : '<div class="text-center text-muted" style="padding:12px;">No items loaded today.<br><a href="/load" style="color:var(--accent);">Go to Morning Load →</a></div>';
-            el.classList.remove('hidden');
-            return;
-        }
-        
-        let html = available.slice(0, 30).map(item => `
-            <div class="list-item" onclick='addItemPrompt(${JSON.stringify(item)})' style="padding:10px 12px; margin-bottom:4px;">
-                <div class="list-item-info">
-                    <div class="list-item-name" style="font-size:0.85rem;">${item.name}</div>
-                    <div class="list-item-sub">SKU: ${item.sku} • <span style="color:var(--green);">${item.remaining} left</span> ${!item.discountable ? '• <span class=text-red>No Disc</span>' : ''}</div>
-                </div>
-                <div class="list-item-right">
-                    <div class="list-item-price">${fmt(item.wholesale)}</div>
-                </div>
+    document.getElementById('disc0Label').textContent = CONFIG.DISCOUNT_1_LABEL;
+    document.getElementById('disc1Label').textContent = CONFIG.DISCOUNT_2_LABEL;
+    document.getElementById('disc2Label').textContent = CONFIG.DISCOUNT_3_LABEL;
+});
+
+// === STATE ===
+let cart = [];
+let customers = [];
+let selectedCustomer = null;
+let discounts = [false, false, false];
+let includePrevBal = false;
+let payMethod = 'Cash';
+let pendingItem = null;
+let allItems = [];
+let searchTimeout;
+
+const RATES = [
+    CONFIG.DISCOUNT_1_PCT,
+    CONFIG.DISCOUNT_2_PCT,
+    CONFIG.DISCOUNT_3_PCT,
+];
+
+// === CUSTOMERS ===
+async function loadCustomers() {
+    customers = await Sheets.getCustomers();
+}
+
+function showCustomerList() {
+    document.getElementById('customerList').classList.remove('hidden');
+    filterCustomers();
+}
+
+function filterCustomers() {
+    const q = document.getElementById('customerSearch').value.toLowerCase();
+    const filtered = customers.filter(c =>
+        c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q)
+    ).slice(0, 20);
+    const el = document.getElementById('customerList');
+    if (!filtered.length) { el.classList.add('hidden'); return; }
+    el.innerHTML = filtered.map(c => `
+        <div class="list-item" onclick="selectCustomer('${c.code}','${c.name.replace(/'/g,"\\'")}',${c.balance})" style="padding:10px 12px;margin-bottom:4px;">
+            <div class="list-item-info"><div class="list-item-name">${c.name}</div></div>
+            <div class="list-item-right">
+                ${c.balance > 0 ? '<div class="text-red text-sm">Balance: ' + fmt(c.balance) + '</div>' : ''}
             </div>
-        `).join('');
-        
-        if (soldOut.length) {
-            html += `<div class="text-center text-muted text-sm" style="padding:6px;opacity:0.5;">— ${soldOut.length} item(s) sold out —</div>`;
-        }
-        
-        el.innerHTML = html || '<div class="text-center text-muted" style="padding:12px;">All items sold out!</div>';
-        el.classList.remove('hidden');
+        </div>`).join('');
+    el.classList.remove('hidden');
+}
+
+function selectCustomer(code, name, balance) {
+    selectedCustomer = { code, name, balance };
+    document.getElementById('customerSearch').classList.add('hidden');
+    document.getElementById('customerList').classList.add('hidden');
+    document.getElementById('selectedCustomer').classList.remove('hidden');
+    document.getElementById('custName').textContent = name;
+    document.getElementById('custBalance').textContent = balance > 0 ? ' \u2014 Balance: ' + fmt(balance) : '';
+    if (balance > 0) {
+        document.getElementById('prevBalSection').classList.remove('hidden');
+        document.getElementById('prevBalInput').value = balance.toFixed(2);
+        includePrevBal = true;
     }
-    
-    function searchItems() {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(showItemDropdown, 150);
-    }
-    
-    // === BARCODE SCAN ===
-    // === CART ===
-    function addItemPrompt(item) {
-        pendingItem = item;
-        document.getElementById('qtyModalTitle').textContent = item.name;
-        document.getElementById('qtyModalValue').value = 1;
-        document.getElementById('qtyModal').classList.add('active');
-    }
-    
-    function qtyModalAdjust(delta) {
-        const el = document.getElementById('qtyModalValue');
-        let v = parseInt(el.value) + delta;
-        if (v < 1) v = 1;
-        el.value = v;
-    }
-    
-    function closeQtyModal() {
-        document.getElementById('qtyModal').classList.remove('active');
-        pendingItem = null;
-    }
-    
-    function confirmQtyModal() {
-        if (!pendingItem) return;
-        const qty = parseInt(document.getElementById('qtyModalValue').value) || 1;
-        addToCart(pendingItem, qty);
-        closeQtyModal();
-        document.getElementById('itemSearch').value = '';
-        document.getElementById('itemResults').classList.add('hidden');
-    }
-    
-    function addToCart(item, qty) {
-        // Check if already in cart
-        const existing = cart.find(c => c.sku === item.sku);
-        if (existing) {
-            existing.qty += qty;
-        } else {
-            cart.push({
-                sku: item.sku,
-                name: item.name,
-                price: item.wholesale,
-                qty: qty,
-                discountable: item.discountable,
-                commission: item.commission
-            });
-        }
-        showToast(qty + 'x ' + item.name + ' added');
-        renderCart();
+    updateTotals();
+}
+
+function clearCustomer() {
+    selectedCustomer = null;
+    includePrevBal = false;
+    document.getElementById('customerSearch').classList.remove('hidden');
+    document.getElementById('customerSearch').value = '';
+    document.getElementById('selectedCustomer').classList.add('hidden');
+    document.getElementById('prevBalSection').classList.add('hidden');
+    document.getElementById('prevBalInput').value = '0';
+    updateTotals();
+}
+
+function editPrevBalance() {
+    const input = document.getElementById('prevBalInput');
+    if (input.readOnly) {
+        input.readOnly = false;
+        input.style.border = '1px solid var(--accent)';
+        input.style.borderRadius = '6px';
+        input.style.padding = '6px';
+        input.focus(); input.select();
+        document.getElementById('prevBalEditBtn').textContent = '\u2713 Done';
+    } else {
+        input.readOnly = true;
+        input.style.border = 'none';
+        input.style.padding = '4px';
+        document.getElementById('prevBalEditBtn').textContent = '\u270f\ufe0f Edit';
         updateTotals();
     }
-    
-    function removeFromCart(index) {
-        cart.splice(index, 1);
-        renderCart();
-        updateTotals();
+}
+
+function showAddCustomer() { document.getElementById('addCustModal').classList.add('active'); }
+
+async function saveNewCustomer() {
+    const name = document.getElementById('newCustName').value.trim();
+    if (!name) { showToast('Enter customer name', true); return; }
+    const code = 'NEW-' + Date.now();
+    const result = await Sheets.writeRows('customer_add', { code, name, route: document.getElementById('newCustRoute').value, balance: 0 });
+    if (result.success || result.offline) {
+        Cache.clear('customers');
+        customers = await Sheets.getCustomers();
+        customers.push({ code, name, balance: 0 });
+        selectCustomer(code, name, 0);
+        document.getElementById('addCustModal').classList.remove('active');
+        document.getElementById('newCustName').value = '';
+        document.getElementById('newCustRoute').value = '';
+        showToast('Customer added');
     }
-    
-    function updateQty(index, delta) {
-        cart[index].qty += delta;
-        if (cart[index].qty < 1) cart[index].qty = 1;
-        renderCart();
-        updateTotals();
+}
+
+// === ITEMS ===
+async function loadAllItems() {
+    allItems = await Sheets.getLoadedItems();
+}
+
+function showItemDropdown() {
+    const q = document.getElementById('itemSearch').value.trim().toLowerCase();
+    let filtered = allItems;
+    if (q.length > 0) filtered = allItems.filter(i => i.name.toLowerCase().includes(q) || i.sku.toLowerCase().includes(q));
+    const available = filtered.filter(i => i.remaining > 0);
+    const soldOut = filtered.filter(i => i.remaining <= 0);
+    const el = document.getElementById('itemResults');
+    if (!filtered.length) {
+        el.innerHTML = allItems.length
+            ? '<div class="text-center text-muted" style="padding:12px;">No matching items</div>'
+            : '<div class="text-center text-muted" style="padding:12px;">No items loaded today.<br><a href="load.html" style="color:var(--accent);">Go to Truck Load \u2192</a></div>';
+        el.classList.remove('hidden'); return;
     }
-    
-    function setQty(index, val) {
-        const qty = parseInt(val) || 1;
-        cart[index].qty = qty < 1 ? 1 : qty;
-        renderCart();
-        updateTotals();
-    }
-    
-    function updateCartBadge() {
+    let html = available.slice(0, 30).map(item => `
+        <div class="list-item" onclick='addItemPrompt(${JSON.stringify(item).replace(/'/g,"&#39;")})' style="padding:10px 12px;margin-bottom:4px;">
+            <div class="list-item-info">
+                <div class="list-item-name" style="font-size:0.85rem;">${item.name}</div>
+                <div class="list-item-sub">SKU: ${item.sku} \u2022 <span style="color:var(--green);">${item.remaining} left</span>${!item.discountable ? ' \u2022 <span class=text-red>No Disc</span>' : ''}</div>
+            </div>
+            <div class="list-item-right"><div class="list-item-price">${fmt(item.wholesale || item.price)}</div></div>
+        </div>`).join('');
+    if (soldOut.length) html += `<div class="text-center text-muted text-sm" style="padding:6px;opacity:0.5;">\u2014 ${soldOut.length} sold out \u2014</div>`;
+    el.innerHTML = html || '<div class="text-center text-muted" style="padding:12px;">All items sold out!</div>';
+    el.classList.remove('hidden');
+}
+
+function searchItems() { clearTimeout(searchTimeout); searchTimeout = setTimeout(showItemDropdown, 150); }
+
+function addItemPrompt(item) {
+    pendingItem = item;
+    document.getElementById('qtyModalTitle').textContent = item.name;
+    document.getElementById('qtyModalValue').value = 1;
+    document.getElementById('qtyModal').classList.add('active');
+}
+function qtyModalAdjust(delta) {
+    const el = document.getElementById('qtyModalValue');
+    let v = parseInt(el.value) + delta;
+    if (v < 1) v = 1;
+    el.value = v;
+}
+function confirmQtyModal() {
+    if (!pendingItem) return;
+    const qty = parseInt(document.getElementById('qtyModalValue').value) || 1;
+    addToCart(pendingItem, qty);
+    document.getElementById('qtyModal').classList.remove('active');
+    document.getElementById('itemSearch').value = '';
+    document.getElementById('itemResults').classList.add('hidden');
+    pendingItem = null;
+}
+
+// === CART ===
+function updateCartBadge() {
     const count = cart.reduce((s, c) => s + c.qty, 0);
     const badge = document.getElementById('cartBadge');
     if (badge) {
@@ -583,434 +428,339 @@
     }
 }
 
+function addToCart(item, qty) {
+    const price = item.wholesale || item.price;
+    const existing = cart.find(c => c.sku === item.sku);
+    if (existing) { existing.qty += qty; }
+    else { cart.push({ sku: item.sku, name: item.name, price, qty, discountable: item.discountable !== false, commission: item.commission || 0 }); }
+    showToast(qty + '\u00d7 ' + item.name + ' added');
+    renderCart(); updateTotals();
+}
+function removeFromCart(i) { cart.splice(i, 1); renderCart(); updateTotals(); }
+function updateQty(i, delta) { cart[i].qty = Math.max(1, cart[i].qty + delta); renderCart(); updateTotals(); }
+function setQty(i, v) { cart[i].qty = Math.max(1, parseInt(v) || 1); renderCart(); updateTotals(); }
+
 function renderCart() {
-        const discItems = cart.filter(c => c.discountable);
-        const nonDiscItems = cart.filter(c => !c.discountable);
-        
-        const renderItem = (item, i) => {
-            const realIndex = cart.indexOf(item);
-            return `
-                <div class="list-item" style="padding:10px 12px; margin-bottom:4px;">
-                    <div class="list-item-info" style="min-width:0;">
-                        <div class="list-item-name" style="font-size:0.85rem;">${item.name}</div>
-                        <div class="list-item-sub">${fmt(item.price)} each</div>
-                    </div>
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <div class="qty-control">
-                            <button class="qty-btn" onclick="updateQty(${realIndex}, -10)">−</button>
-                            <input type="number" class="qty-value" value="${item.qty}" min="1" 
-                                style="width:55px;text-align:center;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.9rem;padding:4px;"
-                                onchange="setQty(${realIndex}, this.value)"
-                                onclick="this.select()">
-                            <button class="qty-btn" onclick="updateQty(${realIndex}, 10)">+</button>
-                        </div>
-                        <div style="width:70px; text-align:right;">
-                            <div class="text-accent fw-bold text-sm">${fmt(item.qty * item.price)}</div>
-                        </div>
-                        <button onclick="removeFromCart(${realIndex})" style="background:none;border:none;color:var(--red);font-size:1.2rem;cursor:pointer;padding:4px;">✕</button>
-                    </div>
+    const discItems = cart.filter(c => c.discountable);
+    const nonDiscItems = cart.filter(c => !c.discountable);
+    const renderItem = item => {
+        const i = cart.indexOf(item);
+        return `<div class="list-item" style="padding:10px 12px;margin-bottom:4px;">
+            <div class="list-item-info" style="min-width:0;">
+                <div class="list-item-name" style="font-size:0.85rem;">${item.name}</div>
+                <div class="list-item-sub">${fmt(item.price)} each</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <div class="qty-control">
+                    <button class="qty-btn" onclick="updateQty(${i},-1)">\u2212</button>
+                    <input type="number" class="qty-value" value="${item.qty}" min="1"
+                        style="width:55px;text-align:center;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.9rem;padding:4px;"
+                        onchange="setQty(${i},this.value)" onclick="this.select()">
+                    <button class="qty-btn" onclick="updateQty(${i},1)">+</button>
                 </div>
-            `;
-        };
-        
-        document.getElementById('discountableCart').innerHTML = discItems.length 
-            ? discItems.map(renderItem).join('') 
-            : '<div class="text-center text-muted text-sm" style="padding:8px;">No discountable items</div>';
-        
-        document.getElementById('nonDiscountableCart').innerHTML = nonDiscItems.length 
-            ? nonDiscItems.map(renderItem).join('') 
-            : '<div class="text-center text-muted text-sm" style="padding:8px;">No non-discountable items</div>';
-        
-        // Show/hide sections
-        document.getElementById('discountableSection').style.display = discItems.length || nonDiscItems.length ? 'block' : 'none';
-        document.getElementById('nonDiscountableSection').style.display = cart.length ? 'block' : 'none';
-        document.getElementById('discountToggles').style.display = discItems.length ? 'grid' : 'none';
-    }
-    
-    // === DISCOUNTS ===
-    function toggleDiscount(n) {
-        discounts[n-1] = !discounts[n-1];
-        for (let i = 0; i < 3; i++) {
-            const el = document.getElementById('disc' + (i+1));
-            const ch = document.getElementById('disc' + (i+1) + 'Check');
-            if (discounts[i]) {
-                el.classList.add('active');
-                ch.textContent = '✓';
-            } else {
-                el.classList.remove('active');
-                ch.textContent = '';
-            }
-        }
-        updateTotals();
-    }
-    
-    // === TOTALS ===
-    function calcDiscountMultiplier() {
-        let mult = 1;
-        for (let i = 0; i < 3; i++) {
-            if (discounts[i]) mult *= (1 - RATES[i] / 100);
-        }
-        return mult;
-    }
-    
-    function updateTotals() {
-        const discSub = cart.filter(c => c.discountable).reduce((s, c) => s + c.qty * c.price, 0);
-        const nonDiscSub = cart.filter(c => !c.discountable).reduce((s, c) => s + c.qty * c.price, 0);
-        const subtotal = discSub + nonDiscSub;
-        
-        const mult = calcDiscountMultiplier();
-        const discountAmt = discSub * (1 - mult);
-        const effectivePct = (1 - mult) * 100;
-        const total = subtotal - discountAmt;
-        
-        const prevBal = getPrevBalance();
-        const grandTotal = total + prevBal;
-        
-        document.getElementById('discSubtotal').textContent = fmt(discSub);
-        document.getElementById('nonDiscSubtotal').textContent = fmt(nonDiscSub);
-        document.getElementById('subtotal').textContent = fmt(subtotal);
-        
-        if (discountAmt > 0) {
-            document.getElementById('discountRow').style.display = 'flex';
-            document.getElementById('discountPctLabel').textContent = effectivePct.toFixed(2) + '%';
-            document.getElementById('discountAmt').textContent = '-' + fmt(discountAmt);
-        } else {
-            document.getElementById('discountRow').style.display = 'none';
-        }
-        
-        document.getElementById('totalAmount').textContent = fmt(total);
-        
-        if (prevBal > 0) {
-            document.getElementById('prevBalRow').style.display = 'flex';
-            document.getElementById('prevBalAmt').textContent = fmt(prevBal);
-            document.getElementById('grandTotalRow').style.display = 'flex';
-            document.getElementById('grandTotal').textContent = fmt(grandTotal);
-        } else {
-            document.getElementById('prevBalRow').style.display = 'none';
-            document.getElementById('grandTotalRow').style.display = 'none';
-        }
-        
-        document.getElementById('proceedBtn').disabled = cart.length === 0;
-    }
-    
-    // === PAYMENT ===
-    function showPayment() {
-        if (cart.length === 0) return;
-        
-        const mult = calcDiscountMultiplier();
-        const discSub = cart.filter(c => c.discountable).reduce((s, c) => s + c.qty * c.price, 0);
-        const nonDiscSub = cart.filter(c => !c.discountable).reduce((s, c) => s + c.qty * c.price, 0);
-        const discountAmt = discSub * (1 - mult);
-        const total = (discSub + nonDiscSub) - discountAmt;
-        const prevBal = getPrevBalance();
-        const grandTotal = total + prevBal;
-        
-        document.getElementById('payDue').textContent = fmt(grandTotal);
-        setPayMethod('Cash');
-        document.getElementById('payCash').value = '';
-        document.getElementById('payCheque').value = '';
-        document.getElementById('payGCash').value = '';
-        document.getElementById('payCredit').value = '';
-        document.getElementById('payChequeNum').value = '';
-        document.getElementById('payGCashRef').value = '';
-        document.getElementById('payNotes').value = '';
-        
-        calcPayment();
-        document.getElementById('paymentModal').classList.add('active');
-    }
-    
-    function closePayment() {
-        document.getElementById('paymentModal').classList.remove('active');
-    }
-    
-    function setPayMethod(method) {
-        payMethod = method;
-        
-        // Reset all buttons
-        ['Cash','Cheque','GCash','Credit','Split'].forEach(m => {
-            const btn = document.getElementById('payMethod' + m);
-            if (btn) btn.className = 'btn btn-sm btn-outline';
-        });
-        
-        // Highlight selected
-        const btn = document.getElementById('payMethod' + method);
-        if (btn) btn.className = 'btn btn-sm btn-primary';
-        
-        // Show/hide inputs
-        const showCash = ['Cash', 'Split'].includes(method);
-        const showCheque = ['Cheque', 'Split'].includes(method);
-        const showGCash = ['GCash', 'Split'].includes(method);
-        const showCredit = ['Credit', 'Split'].includes(method);
-        
-        document.getElementById('cashInput').classList.toggle('hidden', !showCash);
-        document.getElementById('chequeInput').classList.toggle('hidden', !showCheque);
-        document.getElementById('gcashInput').classList.toggle('hidden', !showGCash);
-        document.getElementById('creditInput').classList.toggle('hidden', !showCredit);
-        
-        // Credit auto-compute in Split mode
-        const creditEl = document.getElementById('payCredit');
-        const creditLabel = document.getElementById('creditAutoLabel');
-        if (method === 'Split') {
-            creditEl.readOnly = true;
-            creditEl.style.opacity = '0.7';
-            creditLabel.style.display = 'inline';
-        } else {
-            creditEl.readOnly = false;
-            creditEl.style.opacity = '1';
-            creditLabel.style.display = 'none';
-        }
-        
-        // For single methods, auto-fill
-        const due = getAmountDue();
-        if (method === 'Cash') document.getElementById('payCash').value = '';
-        if (method === 'Cheque') document.getElementById('payCheque').value = due.toFixed(2);
-        if (method === 'GCash') document.getElementById('payGCash').value = due.toFixed(2);
-        if (method === 'Credit') document.getElementById('payCredit').value = due.toFixed(2);
-        
-        calcPayment();
-    }
-    
-    function getAmountDue() {
-        const mult = calcDiscountMultiplier();
-        const discSub = cart.filter(c => c.discountable).reduce((s, c) => s + c.qty * c.price, 0);
-        const nonDiscSub = cart.filter(c => !c.discountable).reduce((s, c) => s + c.qty * c.price, 0);
-        const discountAmt = discSub * (1 - mult);
-        const total = (discSub + nonDiscSub) - discountAmt;
-        const prevBal = getPrevBalance();
-        return total + prevBal;
-    }
-    
-    function calcPayment() {
-        const due = getAmountDue();
-        const cash = parseFloat(document.getElementById('payCash').value) || 0;
-        const cheque = parseFloat(document.getElementById('payCheque').value) || 0;
-        const gcash = parseFloat(document.getElementById('payGCash').value) || 0;
-        
-        // Auto-fill credit with remaining in Split mode
-        const creditEl = document.getElementById('payCredit');
-        if (payMethod === 'Split') {
-            const leftover = due - cash - cheque - gcash;
-            creditEl.value = leftover > 0.01 ? leftover.toFixed(2) : '0.00';
-        }
-        
-        const credit = parseFloat(creditEl.value) || 0;
-        
-        const paid = cash + cheque + gcash;
-        const totalAccountedFor = paid + credit;
-        const remaining = due - totalAccountedFor;
-        const change = paid > (due - credit) ? paid - (due - credit) : 0;
-        
-        // Show change
-        document.getElementById('changeRow').style.display = change > 0 ? 'flex' : 'none';
-        document.getElementById('payChange').textContent = fmt(change);
-        
-        // Show remaining
-        document.getElementById('remainingRow').style.display = remaining > 0.01 ? 'flex' : 'none';
-        document.getElementById('payRemaining').textContent = fmt(remaining);
-        
-        // Show new balance if credit
-        if (credit > 0 && selectedCustomer) {
-            document.getElementById('creditBalRow').style.display = 'flex';
-            // Running balance (negative=owes) minus new credit (owes more)
-            const newBal = (selectedCustomer.balance || 0) - credit;
-            document.getElementById('payNewBal').textContent = fmt(Math.abs(newBal));
-            document.getElementById('payNewBal').style.color = newBal < 0 ? 'var(--red)' : 'var(--green)';
-        } else {
-            document.getElementById('creditBalRow').style.display = 'none';
-        }
-        
-        // Enable complete if fully paid
-        document.getElementById('completeBtn').disabled = remaining > 0.01;
-    }
-    
-    // === COMPLETE SALE ===
-    async function completeSale() {
-        const mult = calcDiscountMultiplier();
-        const prevBal = getPrevBalance();
-        
-        const payload = {
-            customerCode: selectedCustomer ? selectedCustomer.code : '',
-            customerName: selectedCustomer ? selectedCustomer.name : 'Walk-in',
-            items: cart.map(c => ({
-                sku: c.sku, name: c.name, qty: c.qty, price: c.price,
-                discountable: c.discountable, commission: c.commission
-            })),
-            discount1: discounts[0],
-            discount2: discounts[1],
-            discount3: discounts[2],
-            previousBalance: prevBal,
-            paymentMethod: payMethod,
-            cashAmount: parseFloat(document.getElementById('payCash').value) || 0,
-            chequeAmount: parseFloat(document.getElementById('payCheque').value) || 0,
-            chequeNumber: document.getElementById('payChequeNum').value,
-            gcashAmount: parseFloat(document.getElementById('payGCash').value) || 0,
-            gcashRef: document.getElementById('payGCashRef').value,
-            creditAmount: parseFloat(document.getElementById('payCredit').value) || 0,
-            notes: document.getElementById('payNotes').value,
-            remittanceNo: 1
-        };
-        
-        document.getElementById('completeBtn').disabled = true;
-        document.getElementById('completeBtn').textContent = 'Processing...';
-        
-        const result = await apiPost('/api/transaction', payload);
-        
-        if (result.success) {
-            showToast('Sale completed! #' + result.transactionId);
-            closePayment();
-            showReceipt(result.transactionId);
-            
-            // Reset
-            cart = [];
-            discounts = [false, false, false];
-            includePrevBal = false;
-            clearCustomer();
-            renderCart();
-            updateTotals();
-            document.getElementById('prevBalSection').classList.add('hidden');
-            document.getElementById('prevBalInput').value = '0';
-            
-            // Reset discount toggles
-            for (let i = 1; i <= 3; i++) {
-                document.getElementById('disc' + i).classList.remove('active');
-                document.getElementById('disc' + i + 'Check').textContent = '';
-            }
-            
-            // Reload customers for updated balances
-            loadCustomers();
-            // Reload items to update remaining stock
-            loadAllItems();
-        } else {
-            showToast('Error: ' + (result.error || 'Unknown'), true);
-        }
-        
-        document.getElementById('completeBtn').disabled = false;
-        document.getElementById('completeBtn').textContent = '✅ Complete';
-    }
-    
-    // === RECEIPT ===
-    async function showReceipt(transId) {
-        const data = await apiFetch('/api/transaction/' + transId);
-        if (data.error) return;
-        
-        const s = data.settings || {};
-        let html = `<div class="receipt" id="receiptPrint">`;
-        html += `<div class="receipt-header">`;
-        html += `<strong>${s.business_name || 'Agent POS'}</strong><br>`;
-        if (s.business_address) html += `${s.business_address}<br>`;
-        if (s.business_phone) html += `${s.business_phone}<br>`;
-        html += `<br>Transaction #${data.id}<br>${data.date}`;
-        html += `</div>`;
-        
-        if (data.customerName) html += `Customer: ${data.customerName}<br>`;
-        html += `<div class="receipt-divider"></div>`;
-        
-        // Items
-        data.items.forEach(item => {
-            html += `<div>${item.name}</div>`;
-            html += `<div class="receipt-line"><span>&nbsp;&nbsp;${item.qty} × ${fmtN(item.price)}</span><span>${fmtN(item.lineTotal)}</span></div>`;
-            if (item.discountPercent > 0) {
-                html += `<div style="font-size:0.7rem;color:#666;">&nbsp;&nbsp;(${item.discountPercent.toFixed(2)}% discount applied)</div>`;
-            }
-        });
-        
-        html += `<div class="receipt-divider"></div>`;
-        html += `<div class="receipt-line"><span>Subtotal</span><span>${fmtN(data.subTotal)}</span></div>`;
-        
-        if (data.discountAmount > 0) {
-            html += `<div class="receipt-line"><span>Discount (${data.discountPercent.toFixed(2)}%)</span><span>-${fmtN(data.discountAmount)}</span></div>`;
-        }
-        
-        html += `<div class="receipt-line receipt-total"><span>Total</span><span>${fmtN(data.total)}</span></div>`;
-        
-        if (data.previousBalance > 0) {
-            html += `<div class="receipt-line"><span>Previous Balance</span><span>${fmtN(data.previousBalance)}</span></div>`;
-            html += `<div class="receipt-line receipt-total"><span>Grand Total</span><span>${fmtN(data.grandTotal)}</span></div>`;
-        }
-        
-        html += `<div class="receipt-divider"></div>`;
-        if (data.cash > 0) html += `<div class="receipt-line"><span>Cash</span><span>${fmtN(data.cash)}</span></div>`;
-        if (data.cheque > 0) html += `<div class="receipt-line"><span>Cheque ${data.chequeNumber}</span><span>${fmtN(data.cheque)}</span></div>`;
-        if (data.gcash > 0) html += `<div class="receipt-line"><span>GCash ${data.gcashRef}</span><span>${fmtN(data.gcash)}</span></div>`;
-        if (data.credit > 0) html += `<div class="receipt-line"><span>Credit</span><span>${fmtN(data.credit)}</span></div>`;
-        if (data.change > 0) html += `<div class="receipt-line"><span>Change</span><span>${fmtN(data.change)}</span></div>`;
-        
-        if (data.notes) html += `<br>Notes: ${data.notes}`;
-        
-        html += `<div class="receipt-divider"></div>`;
-        html += `<div style="text-align:center;">Thank you!<br>{{ settings.agent_name or 'Agent' }} - ${s.business_name || ''}</div>`;
-        html += `</div>`;
-        
-        document.getElementById('receiptContent').innerHTML = html;
-        window._lastTransId = transId;
-        document.getElementById('receiptModal').classList.add('active');
-    }
-    
-    function closeReceipt() {
-        document.getElementById('receiptModal').classList.remove('active');
-    }
-    
-    async function shareReceipt() {
-        const receiptEl = document.getElementById('receiptPrint');
-        const text = receiptEl.innerText;
-        
-        // Try Web Share API first (works on HTTPS)
-        if (navigator.share) {
-            try {
-                await navigator.share({ title: 'Receipt', text: text });
-                return;
-            } catch(e) {
-                // User cancelled or not supported - fall through to clipboard
-            }
-        }
-        
-        // Fallback: copy to clipboard
-        try {
-            await navigator.clipboard.writeText(text);
-            showToast('📋 Receipt copied to clipboard!');
-        } catch(e) {
-            // Final fallback: textarea select+copy
-            const ta = document.createElement('textarea');
-            ta.value = text;
-            ta.style.position = 'fixed';
-            ta.style.left = '-9999px';
-            document.body.appendChild(ta);
-            ta.select();
-            document.execCommand('copy');
-            document.body.removeChild(ta);
-            showToast('📋 Receipt copied to clipboard!');
-        }
-    }
-    
-    // === HISTORY ===
-    async function showHistory() {
-        const data = await apiFetch('/api/transactions?date={{ today }}');
-        const el = document.getElementById('historyList');
-        
-        if (!data.length) {
-            el.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>No transactions today</p></div>';
-        } else {
-            el.innerHTML = data.map(t => `
-                <div class="list-item" onclick="showReceipt(${t.id})" style="margin-bottom:4px;">
-                    <div class="list-item-info">
-                        <div class="list-item-name">#${t.id} - ${t.customer}</div>
-                        <div class="list-item-sub">${t.time} • ${t.method}${t.void ? ' • <span class=text-red>VOID</span>' : ''}</div>
-                    </div>
-                    <div class="list-item-right">
-                        <div class="list-item-price">${fmt(t.total)}</div>
-                        ${t.credit > 0 ? '<div class="text-red text-sm">Credit: ' + fmt(t.credit) + '</div>' : ''}
-                    </div>
+                <div style="width:70px;text-align:right;">
+                    <div class="text-accent fw-bold text-sm">${fmt(item.qty * item.price)}</div>
                 </div>
-            `).join('');
-        }
-        
-        document.getElementById('historyModal').classList.add('active');
+                <button onclick="removeFromCart(${i})" style="background:none;border:none;color:var(--red);font-size:1.1rem;cursor:pointer;">\u2715</button>
+            </div>
+        </div>`;
+    };
+    document.getElementById('discountableSection').style.display = discItems.length ? 'block' : 'none';
+    document.getElementById('nonDiscountableSection').style.display = nonDiscItems.length ? 'block' : 'none';
+    document.getElementById('discountableCart').innerHTML = discItems.map(renderItem).join('');
+    document.getElementById('nonDiscountableCart').innerHTML = nonDiscItems.map(renderItem).join('');
+    updateCartBadge();
+}
+
+// === TOTALS ===
+function calcDiscountMultiplier() {
+    let total = 0;
+    discounts.forEach((on, i) => { if (on) total += RATES[i]; });
+    return 1 - Math.min(total, 0.99);
+}
+
+function updateTotals() {
+    const mult = calcDiscountMultiplier();
+    const discSub = cart.filter(c => c.discountable).reduce((s, c) => s + c.qty * c.price, 0);
+    const nonDiscSub = cart.filter(c => !c.discountable).reduce((s, c) => s + c.qty * c.price, 0);
+    const discountAmt = discSub * (1 - mult);
+    const total = discSub + nonDiscSub - discountAmt;
+    const prevBal = includePrevBal ? (parseFloat(document.getElementById('prevBalInput').value) || 0) : 0;
+    const grandTotal = total + prevBal;
+
+    document.getElementById('discSubtotal').textContent = fmt(discSub);
+    document.getElementById('nonDiscSubtotal').textContent = fmt(nonDiscSub);
+    document.getElementById('subtotal').textContent = fmt(discSub + nonDiscSub);
+    document.getElementById('totalAmount').textContent = fmt(total);
+
+    const discPct = (1 - mult) * 100;
+    if (discountAmt > 0) {
+        document.getElementById('discountRow').style.display = 'flex';
+        document.getElementById('discountPctLabel').textContent = discPct.toFixed(2) + '%';
+        document.getElementById('discountAmt').textContent = '-' + fmt(discountAmt);
+    } else { document.getElementById('discountRow').style.display = 'none'; }
+
+    if (prevBal > 0) {
+        document.getElementById('prevBalRow').style.display = 'flex';
+        document.getElementById('grandTotalRow').style.display = 'flex';
+        document.getElementById('prevBalAmt').textContent = fmt(prevBal);
+        document.getElementById('grandTotal').textContent = fmt(grandTotal);
+    } else {
+        document.getElementById('prevBalRow').style.display = 'none';
+        document.getElementById('grandTotalRow').style.display = 'none';
     }
-    
-    // === INIT ===
-    loadCustomers();
-    loadAllItems();
-    renderCart();
+    document.getElementById('proceedBtn').disabled = cart.length === 0;
+}
+
+function toggleDiscount(i) {
+    discounts[i] = !discounts[i];
+    document.getElementById('disc' + i).classList.toggle('active', discounts[i]);
+    document.getElementById('disc' + i + 'Check').textContent = discounts[i] ? '\u2713' : '';
     updateTotals();
+}
+
+// === PAYMENT ===
+function getAmountDue() {
+    const mult = calcDiscountMultiplier();
+    const discSub = cart.filter(c => c.discountable).reduce((s, c) => s + c.qty * c.price, 0);
+    const nonDiscSub = cart.filter(c => !c.discountable).reduce((s, c) => s + c.qty * c.price, 0);
+    const total = (discSub + nonDiscSub) - discSub * (1 - mult);
+    const prevBal = includePrevBal ? (parseFloat(document.getElementById('prevBalInput').value) || 0) : 0;
+    return total + prevBal;
+}
+
+function showPayment() {
+    document.getElementById('payDue').textContent = fmt(getAmountDue());
+    setPayMethod('Cash');
+    ['payCash','payCheque','payGCash','payCredit','payChequeNum','payGCashRef','payNotes'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.value = '';
+    });
+    calcPayment();
+    document.getElementById('paymentModal').classList.add('active');
+}
+
+function closePayment() { document.getElementById('paymentModal').classList.remove('active'); }
+
+function setPayMethod(m) {
+    payMethod = m;
+    ['Cash','Cheque','GCash','Credit','Split'].forEach(x => {
+        const btn = document.getElementById('payMethod' + x);
+        if (btn) btn.className = 'btn btn-sm ' + (x === m ? 'btn-primary' : 'btn-outline');
+    });
+    document.getElementById('cashInput').classList.toggle('hidden', !['Cash','Split'].includes(m));
+    document.getElementById('chequeInput').classList.toggle('hidden', !['Cheque','Split'].includes(m));
+    document.getElementById('gcashInput').classList.toggle('hidden', !['GCash','Split'].includes(m));
+    document.getElementById('creditInput').classList.toggle('hidden', !['Credit','Split'].includes(m));
+    const creditEl = document.getElementById('payCredit');
+    const creditAutoLabel = document.getElementById('creditAutoLabel');
+    creditEl.readOnly = m === 'Split';
+    creditEl.style.opacity = m === 'Split' ? '0.7' : '1';
+    creditAutoLabel.style.display = m === 'Split' ? 'inline' : 'none';
+    const due = getAmountDue();
+    if (m === 'Cheque') document.getElementById('payCheque').value = due.toFixed(2);
+    if (m === 'GCash') document.getElementById('payGCash').value = due.toFixed(2);
+    if (m === 'Credit') document.getElementById('payCredit').value = due.toFixed(2);
+    calcPayment();
+}
+
+function calcPayment() {
+    const due = getAmountDue();
+    const cash = parseFloat(document.getElementById('payCash').value) || 0;
+    const cheque = parseFloat(document.getElementById('payCheque').value) || 0;
+    const gcash = parseFloat(document.getElementById('payGCash').value) || 0;
+    const creditEl = document.getElementById('payCredit');
+    if (payMethod === 'Split') {
+        const leftover = due - cash - cheque - gcash;
+        creditEl.value = leftover > 0.01 ? leftover.toFixed(2) : '0.00';
+    }
+    const credit = parseFloat(creditEl.value) || 0;
+    const paid = cash + cheque + gcash;
+    const remaining = due - paid - credit;
+    const change = paid > (due - credit) ? paid - (due - credit) : 0;
+    document.getElementById('changeRow').style.display = change > 0 ? 'flex' : 'none';
+    document.getElementById('payChange').textContent = fmt(change);
+    document.getElementById('remainingRow').style.display = remaining > 0.01 ? 'flex' : 'none';
+    document.getElementById('payRemaining').textContent = fmt(remaining);
+    if (credit > 0 && selectedCustomer) {
+        document.getElementById('creditBalRow').style.display = 'flex';
+        const newBal = (selectedCustomer.balance || 0) + credit;
+        document.getElementById('payNewBal').textContent = fmt(newBal);
+    } else { document.getElementById('creditBalRow').style.display = 'none'; }
+    document.getElementById('completeBtn').disabled = remaining > 0.01;
+}
+
+// === COMPLETE SALE ===
+async function completeSale() {
+    const mult = calcDiscountMultiplier();
+    const prevBal = includePrevBal ? (parseFloat(document.getElementById('prevBalInput').value) || 0) : 0;
+    const txId = 'TX-' + Date.now();
+
+    const payload = {
+        txId,
+        customerCode: selectedCustomer ? selectedCustomer.code : '',
+        customerName: selectedCustomer ? selectedCustomer.name : 'Walk-in',
+        items: cart.map(c => ({ sku: c.sku, name: c.name, qty: c.qty, price: c.price, discountable: c.discountable, commission: c.commission })),
+        discountPct: (1 - mult) * 100,
+        previousBalance: prevBal,
+        paymentMethod: payMethod,
+        cashAmount: parseFloat(document.getElementById('payCash').value) || 0,
+        chequeAmount: parseFloat(document.getElementById('payCheque').value) || 0,
+        chequeNumber: document.getElementById('payChequeNum').value,
+        gcashAmount: parseFloat(document.getElementById('payGCash').value) || 0,
+        gcashRef: document.getElementById('payGCashRef').value,
+        creditAmount: parseFloat(document.getElementById('payCredit').value) || 0,
+        notes: document.getElementById('payNotes').value,
+        remittanceNo: 1,
+        total: getAmountDue(),
+    };
+
+    document.getElementById('completeBtn').disabled = true;
+    document.getElementById('completeBtn').textContent = '\u23f3 Processing...';
+
+    const result = await Sheets.postTransaction(payload);
+
+    if (result.success || result.offline) {
+        showToast(result.offline ? '\u{1f4f1} Sale saved offline' : 'Sale completed! ' + txId);
+        closePayment();
+        showLocalReceipt(payload);
+        cart = []; discounts = [false, false, false]; includePrevBal = false;
+        clearCustomer(); renderCart(); updateTotals();
+        for (let i = 0; i < 3; i++) {
+            document.getElementById('disc' + i).classList.remove('active');
+            document.getElementById('disc' + i + 'Check').textContent = '';
+        }
+        Cache.clear('customers');
+        loadCustomers();
+        await loadAllItems();
+    } else {
+        showToast('Error: ' + (result.error || 'Unknown'), true);
+    }
+    document.getElementById('completeBtn').disabled = false;
+    document.getElementById('completeBtn').textContent = '\u2705 Complete';
+}
+
+function showLocalReceipt(p) {
+    const mult = 1 - (p.discountPct / 100);
+    const discSub = p.items.filter(i => i.discountable).reduce((s, i) => s + i.qty * i.price, 0);
+    const nonDiscSub = p.items.filter(i => !i.discountable).reduce((s, i) => s + i.qty * i.price, 0);
+    const discAmt = discSub * (p.discountPct / 100);
+    const total = discSub + nonDiscSub - discAmt;
+
+    let html = `<div class="receipt" id="receiptPrint">
+        <div class="receipt-header"><strong>Samit Agent POS</strong><br>${CONFIG.AGENT_NAME}<br><br>Ref: ${p.txId}<br>${Sheets.now()}</div>`;
+    if (p.customerName !== 'Walk-in') html += `Customer: ${p.customerName}<br>`;
+    html += `<div class="receipt-divider"></div>`;
+    p.items.forEach(i => {
+        const lineTotal = i.qty * i.price * (i.discountable ? mult : 1);
+        html += `<div>${i.name}</div><div class="receipt-line"><span>&nbsp;&nbsp;${i.qty} \u00d7 ${fmtN(i.price)}</span><span>${fmtN(lineTotal)}</span></div>`;
+    });
+    html += `<div class="receipt-divider"></div>
+        <div class="receipt-line"><span>Subtotal</span><span>${fmtN(discSub + nonDiscSub)}</span></div>`;
+    if (discAmt > 0) html += `<div class="receipt-line"><span>Discount (${p.discountPct.toFixed(2)}%)</span><span>-${fmtN(discAmt)}</span></div>`;
+    html += `<div class="receipt-line receipt-total"><span>Total</span><span>${fmtN(total)}</span></div>`;
+    if (p.previousBalance > 0) {
+        html += `<div class="receipt-line"><span>Previous Balance</span><span>${fmtN(p.previousBalance)}</span></div>`;
+        html += `<div class="receipt-line receipt-total"><span>Grand Total</span><span>${fmtN(p.total)}</span></div>`;
+    }
+    html += `<div class="receipt-divider"></div>`;
+    if (p.cashAmount > 0) html += `<div class="receipt-line"><span>Cash</span><span>${fmtN(p.cashAmount)}</span></div>`;
+    if (p.chequeAmount > 0) html += `<div class="receipt-line"><span>Cheque ${p.chequeNumber}</span><span>${fmtN(p.chequeAmount)}</span></div>`;
+    if (p.gcashAmount > 0) html += `<div class="receipt-line"><span>GCash ${p.gcashRef}</span><span>${fmtN(p.gcashAmount)}</span></div>`;
+    if (p.creditAmount > 0) html += `<div class="receipt-line"><span>Credit</span><span>${fmtN(p.creditAmount)}</span></div>`;
+    if (p.notes) html += `<br>Notes: ${p.notes}`;
+    html += `<div class="receipt-divider"></div><div style="text-align:center;">Thank you!</div></div>`;
+    document.getElementById('receiptContent').innerHTML = html;
+    document.getElementById('receiptModal').classList.add('active');
+    document.getElementById('receiptPhotoBtn').disabled = false;
+    document.getElementById('receiptPhotoBtn').innerHTML = '&#128247; Take Photo of Receipt';
+}
+
+function fmtN(n) { return (n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+async function shareReceipt() {
+    const text = document.getElementById('receiptPrint').innerText;
+    if (navigator.share) { try { await navigator.share({ title: 'Receipt', text }); return; } catch(e) {} }
+    try { await navigator.clipboard.writeText(text); showToast('\u{1f4cb} Copied to clipboard!'); }
+    catch(e) { showToast('Could not copy', true); }
+}
+
+async function showHistory() {
+    const data = await Sheets.getTodayTransactions();
+    const el = document.getElementById('historyList');
+    if (!data.length) {
+        el.innerHTML = '<div class="empty-state"><div class="icon">&#128203;</div><p>No transactions today</p></div>';
+    } else {
+        el.innerHTML = data.map(t => `
+            <div class="list-item" style="margin-bottom:4px;">
+                <div class="list-item-info">
+                    <div class="list-item-name">${t.txId} \u2014 ${t.customerName}</div>
+                    <div class="list-item-sub">${t.timestamp} \u2022 ${t.method}</div>
+                </div>
+                <div class="list-item-right"><div class="list-item-price">${fmt(t.total)}</div></div>
+            </div>`).join('');
+    }
+    document.getElementById('historyModal').classList.add('active');
+}
+
+// ── PHOTO CAPTURE ─────────────────────────────────────────────
+async function capturePhoto(label, filename) {
+    return new Promise((resolve) => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.capture = 'environment';
+        input.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) { resolve(null); return; }
+            const reader = new FileReader();
+            reader.onload = async (ev) => {
+                const base64 = ev.target.result.split(',')[1];
+                showToast('\u23f3 Uploading photo...');
+                try {
+                    const res = await fetch(CONFIG.PROXY_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'photo_upload', imageData: base64, filename, label })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        showToast('\u2713 Photo saved to Drive!');
+                        resolve(data);
+                    } else {
+                        showToast('Upload failed: ' + (data.error || ''), true);
+                        resolve(null);
+                    }
+                } catch(err) {
+                    showToast('Upload error: ' + err.message, true);
+                    resolve(null);
+                }
+            };
+            reader.readAsDataURL(file);
+        };
+        input.click();
+    });
+}
+
+async function takeReceiptPhoto() {
+    const btn = document.getElementById('receiptPhotoBtn');
+    if (btn) { btn.disabled = true; btn.textContent = '\u23f3 Opening camera...'; }
+    const today = new Date().toISOString().slice(0, 10);
+    const custName = (selectedCustomer ? selectedCustomer.name : 'WalkIn').replace(/\s+/g, '_');
+    await capturePhoto('Sale Receipt', 'SALE_' + CONFIG.AGENT_NAME + '_' + custName + '_' + today + '.jpg');
+    if (btn) { btn.disabled = false; btn.innerHTML = '&#128247; Take Photo of Receipt'; }
+}
+
+// Close dropdowns on outside tap
+document.addEventListener('click', e => {
+    if (!e.target.closest('#customerList') && !e.target.closest('#customerSearch')) document.getElementById('customerList').classList.add('hidden');
+    if (!e.target.closest('#itemResults') && !e.target.closest('#itemSearch')) document.getElementById('itemResults').classList.add('hidden');
+});
+
+// === INIT ===
+loadCustomers();
+loadAllItems();
+renderCart();
+updateTotals();
 </script>
-{% endblock %}
+</body>
+</html>
