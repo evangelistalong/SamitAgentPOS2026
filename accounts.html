@@ -26,15 +26,25 @@
         .acc-item .acc-right .acc-arr { font-size: 0.7rem; color: var(--text2); }
 
         .tx-row {
-            padding: 10px 12px; border-radius: 8px;
-            background: rgba(255,255,255,0.03); margin-bottom: 6px;
-            font-size: 0.82rem;
+            display: flex; align-items: center; gap: 8px;
+            padding: 9px 12px; border-radius: 8px;
+            background: rgba(255,255,255,0.03); margin-bottom: 5px;
         }
-        .tx-row .tx-top  { display: flex; justify-content: space-between; margin-bottom: 4px; }
-        .tx-row .tx-date { color: var(--text2); font-size: 0.75rem; }
-        .tx-row .tx-inv  { color: var(--text2); font-size: 0.75rem; }
-        .tx-row .tx-bot  { display: flex; justify-content: space-between; }
-        .tx-row .tx-rem  { font-size: 0.72rem; color: var(--text2); margin-top: 3px; }
+        .tx-row .tx-date {
+            font-size: 0.75rem; color: var(--text2);
+            min-width: 80px; font-variant-numeric: tabular-nums;
+        }
+        .tx-row .tx-badge {
+            font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em;
+            text-transform: uppercase; padding: 2px 7px; border-radius: 4px;
+            white-space: nowrap; flex-shrink: 0;
+        }
+        .tx-row .tx-badge.sale    { background: rgba(239,68,68,0.15);  color: var(--red); }
+        .tx-row .tx-badge.payment { background: rgba(74,222,128,0.15); color: var(--green); }
+        .tx-row .tx-right  { margin-left: auto; text-align: right; }
+        .tx-row .tx-amount { font-weight: 700; font-size: 0.88rem; }
+        .tx-row .tx-inv    { font-size: 0.68rem; color: var(--text2); }
+        .tx-row .tx-rem    { font-size: 0.7rem; color: var(--text2); opacity: 0.7; }
 
         .summary-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
         .summary-card { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 10px; text-align: center; }
@@ -311,27 +321,28 @@ function showDetail(code) {
         return;
     }
 
-    document.getElementById('detailTx').innerHTML = acc.transactions.map(t => `
+    document.getElementById('detailTx').innerHTML = acc.transactions.map(t => {
+        const isSale    = t.credit > 0 && t.collection <= 0;
+        const isPayment = t.collection > 0 && t.credit <= 0;
+        const isBoth    = t.credit > 0 && t.collection > 0;
+        const badgeHtml = isBoth
+            ? `<span class="tx-badge sale">Credit Sale</span><span class="tx-badge payment">Payment</span>`
+            : isSale
+                ? `<span class="tx-badge sale">Credit Sale</span>`
+                : `<span class="tx-badge payment">Payment</span>`;
+        const amountHtml = isBoth
+            ? `<div class="tx-right"><span class="tx-amount text-red">+${fmt(t.credit)}</span> <span class="tx-amount text-green">-${fmt(t.collection)}</span>${t.invoice ? '<div class="tx-inv">INV #' + t.invoice + '</div>' : ''}</div>`
+            : isSale
+                ? `<div class="tx-right"><span class="tx-amount text-red">+${fmt(t.credit)}</span>${t.invoice ? '<div class="tx-inv">INV #' + t.invoice + '</div>' : ''}</div>`
+                : `<div class="tx-right"><span class="tx-amount text-green">-${fmt(t.collection)}</span>${t.invoice ? '<div class="tx-inv">INV #' + t.invoice + '</div>' : ''}</div>`;
+        return `
         <div class="tx-row">
-            <div class="tx-top">
-                <span class="tx-date">${t.date ? t.date.slice(0,10) : '—'}</span>
-                <span class="tx-inv">${t.invoice ? 'INV #' + t.invoice : ''}</span>
-            </div>
-            <div class="tx-bot">
-                ${t.credit > 0 ? `
-                <span style="display:flex;flex-direction:column;align-items:flex-start;">
-                    <span style="font-size:0.65rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.04em;">Credit Sale</span>
-                    <span class="text-red" style="font-weight:600;">+${fmt(t.credit)}</span>
-                </span>` : '<span></span>'}
-                ${t.collection > 0 ? `
-                <span style="display:flex;flex-direction:column;align-items:flex-end;">
-                    <span style="font-size:0.65rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.04em;">Payment</span>
-                    <span class="text-green" style="font-weight:600;">-${fmt(t.collection)}</span>
-                </span>` : '<span></span>'}
-            </div>
-            ${t.remarks ? `<div class="tx-rem">&#128172; ${t.remarks}</div>` : ''}
-        </div>
-    `).join('');
+            <span class="tx-date">${t.date ? t.date.slice(0,10) : '—'}</span>
+            ${badgeHtml}
+            ${t.remarks ? `<span class="tx-rem">${t.remarks}</span>` : ''}
+            ${amountHtml}
+        </div>`;
+    }).join('');
 }
 
 function closeDetail() {
