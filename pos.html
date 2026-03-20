@@ -54,32 +54,20 @@
     <a href="#" class="topbar-action text-sm" onclick="showHistory();return false;">&#128203;</a>
 </div>
 <div class="content" style="padding-bottom:0;">
-    <div class="card mb-3" style="padding:10px 12px;" id="custCard">
-        <!-- No customer selected -->
-        <div id="custEmpty" style="display:flex;align-items:center;justify-content:space-between;">
-            <span style="font-size:0.85rem;color:var(--text2);">&#128101; Walk-in (no customer)</span>
-            <div style="display:flex;gap:6px;">
-                <button class="btn btn-sm btn-outline" style="padding:4px 8px;font-size:0.7rem;" onclick="showAddCustomer()">+ New</button>
-                <button class="btn btn-sm" style="padding:4px 10px;font-size:0.7rem;background:var(--accent);color:#000;" onclick="openCustPicker()">Select</button>
-            </div>
+    <!-- Customer pre-select (optional - can also select at checkout) -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:0 2px;">
+        <div id="custEmpty" style="flex:1;display:flex;align-items:center;gap:8px;">
+            <span style="font-size:0.8rem;color:var(--text2);">&#128101; Walk-in</span>
         </div>
-        <!-- Customer selected -->
-        <div id="custSelected" style="display:none;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-                <div style="flex:1;min-width:0;">
-                    <div class="fw-bold" id="custNameLbl" style="font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
-                    <div id="custCodeLbl" style="font-size:0.68rem;color:var(--text2);"></div>
-                </div>
-                <div style="display:flex;gap:6px;align-items:center;">
-                    <button class="btn btn-sm btn-outline" style="padding:4px 8px;font-size:0.7rem;color:var(--blue);border-color:var(--blue);" onclick="openCustHistory()">&#128220; History</button>
-                    <button class="btn btn-sm btn-outline" style="padding:4px 6px;font-size:0.7rem;color:var(--red);" onclick="clearCustomer()">&#10005;</button>
-                </div>
+        <div id="custSelected" style="flex:1;display:none;align-items:center;gap:6px;min-width:0;">
+            <div style="flex:1;min-width:0;">
+                <span class="fw-bold" id="custNameLbl" style="font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;"></span>
             </div>
-            <!-- Balance display -->
-            <div id="custBalCard" style="border-radius:8px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;">
-                <span style="font-size:0.75rem;opacity:0.8;">Outstanding Balance</span>
-                <span id="custBalLbl" style="font-size:1.1rem;font-weight:700;"></span>
+            <div id="custBalCard" style="border-radius:6px;padding:3px 8px;font-size:0.72rem;font-weight:700;white-space:nowrap;">
+                <span id="custBalLbl"></span>
             </div>
+            <button onclick="openCustHistory()" style="background:none;border:none;color:var(--blue);font-size:0.9rem;cursor:pointer;padding:2px;">&#128220;</button>
+            <button onclick="clearCustomer()" style="background:none;border:none;color:var(--text2);font-size:0.9rem;cursor:pointer;padding:2px;">&#10005;</button>
         </div>
     </div>
     <div style="margin-bottom:8px;">
@@ -179,7 +167,31 @@
     <div class="modal">
         <div class="modal-handle"></div>
         <div class="modal-title">&#x1f4b3; Payment</div>
-        <div id="payCustomerInfo" style="display:none;font-size:0.82rem;padding:6px 10px;background:rgba(255,255,255,0.05);border-radius:8px;margin-bottom:10px;"></div>
+        <!-- Customer selector in payment modal -->
+        <div style="margin-bottom:10px;">
+            <!-- No customer -->
+            <div id="payNoCust" style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(255,255,255,0.05);border-radius:8px;cursor:pointer;" onclick="openCustPickerFromPayment()">
+                <span style="font-size:0.82rem;color:var(--text2);">&#128101; Walk-in — tap to select customer</span>
+                <span style="color:var(--accent);font-size:0.78rem;font-weight:600;">Select ›</span>
+            </div>
+            <!-- Customer selected -->
+            <div id="payCustSelected" style="display:none;border-radius:8px;overflow:hidden;">
+                <div style="padding:8px 12px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:space-between;">
+                    <div>
+                        <div class="fw-bold" id="payCustName" style="font-size:0.88rem;"></div>
+                        <div id="payCustCode" style="font-size:0.68rem;color:var(--text2);"></div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <button onclick="openCustHistory()" style="background:none;border:none;color:var(--blue);font-size:0.78rem;cursor:pointer;font-weight:600;">&#128220; History</button>
+                        <button onclick="clearCustomerFromPayment()" style="background:none;border:none;color:var(--text2);font-size:0.9rem;cursor:pointer;">&#10005;</button>
+                    </div>
+                </div>
+                <div id="payCustBal" style="padding:6px 12px;display:flex;justify-content:space-between;font-size:0.8rem;">
+                    <span style="opacity:0.8;">Outstanding Balance</span>
+                    <span id="payCustBalAmt" style="font-weight:700;"></span>
+                </div>
+            </div>
+        </div>
         <div class="card mb-4" style="background:var(--accent);color:#000;text-align:center;">
             <div class="text-sm">Amount Due</div>
             <div class="text-xl fw-bold" id="payDue">&#8369;0.00</div>
@@ -389,6 +401,14 @@ function selectCustomer(code,name,balance){
     }
     document.getElementById('custPickerModal').classList.remove('active');
     renderCartTotals();
+    // If picker was opened from payment modal, update payment UI
+    if(window._paymentPickerOpen){
+        window._paymentPickerOpen=false;
+        updatePayCustomerUI();
+        // Recalc with potential prev balance
+        document.getElementById('payDue').textContent=fmt(getAmountDue());
+        calcPay();
+    }
 }
 
 async function openCustHistory(){
@@ -526,25 +546,48 @@ async function saveNewCustomer(){
 function getAmountDue(){const prev=includePrevBal?(parseFloat(document.getElementById('prevBalInput').value)||0):0;return getCartTotal()+prev;}
 function showPayment(){
     document.getElementById('cartModal').classList.remove('active');
-    // Show customer info in payment modal
-    const custInfoEl = document.getElementById('payCustomerInfo');
-    if(custInfoEl){
-        if(selCustomer){
-            const bal = selCustomer.balance||0;
-            custInfoEl.style.display='block';
-            custInfoEl.innerHTML = '&#128101; <strong>'+selCustomer.name+'</strong>'
-                + (bal !== 0 ? ' <span style="color:var(--red);font-size:0.75rem;">(owes '+fmt(Math.abs(bal))+')</span>' : ' <span style="color:var(--green);font-size:0.75rem;">(clear)</span>');
-        } else {
-            custInfoEl.style.display='block';
-            custInfoEl.innerHTML = '&#128101; <span style="color:var(--text2);">Walk-in customer</span>';
-        }
-    }
+    updatePayCustomerUI();
     document.getElementById('payDue').textContent=fmt(getAmountDue());
     document.getElementById('completeBtn').disabled=true;
     setPayMethod('Cash');
     ['payCash','payCheque','payGCash','payCredit','payChequeNum','payGCashRef','payNotes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
     calcPay();
     document.getElementById('paymentModal').classList.add('active');
+}
+
+function updatePayCustomerUI(){
+    if(selCustomer){
+        document.getElementById('payNoCust').style.display='none';
+        document.getElementById('payCustSelected').style.display='block';
+        document.getElementById('payCustName').textContent=selCustomer.name;
+        document.getElementById('payCustCode').textContent='Code: '+selCustomer.code;
+        const bal=selCustomer.balance||0;
+        const balEl=document.getElementById('payCustBal');
+        const balAmt=document.getElementById('payCustBalAmt');
+        if(bal!==0){
+            balEl.style.background='rgba(239,68,68,0.12)';
+            balAmt.style.color='var(--red)';
+            balAmt.textContent=fmt(Math.abs(bal))+' owes';
+        }else{
+            balEl.style.background='rgba(74,222,128,0.1)';
+            balAmt.style.color='var(--green)';
+            balAmt.textContent='Clear';
+        }
+    }else{
+        document.getElementById('payNoCust').style.display='flex';
+        document.getElementById('payCustSelected').style.display='none';
+    }
+}
+
+function openCustPickerFromPayment(){
+    // Remember we came from payment modal
+    window._paymentPickerOpen=true;
+    openCustPicker();
+}
+
+function clearCustomerFromPayment(){
+    clearCustomer();
+    updatePayCustomerUI();
 }
 function setPayMethod(m){
     payMethod=m;
