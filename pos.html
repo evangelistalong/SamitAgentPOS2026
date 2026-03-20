@@ -489,19 +489,25 @@ async function showHistory(){
 async function capturePhoto(label,filename){
     return new Promise(resolve=>{
         const input=document.createElement('input');input.type='file';input.accept='image/*';input.capture='environment';
+        let settled=false;
+        function done(val){if(!settled){settled=true;resolve(val);}}
+        function onFocus(){setTimeout(()=>{if(!settled)done(null);},600);}
+        window.addEventListener('focus',onFocus,{once:true});
         input.onchange=async e=>{
-            const file=e.target.files[0];if(!file){resolve(null);return;}
+            window.removeEventListener('focus',onFocus);
+            const file=e.target.files[0];if(!file){done(null);return;}
             const reader=new FileReader();
             reader.onload=async ev=>{
                 const base64=ev.target.result.split(',')[1];showToast('\u23f3 Uploading...');
                 try{
                     const res=await fetch(CONFIG.PROXY_URL||CONFIG.APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'photo_upload',imageData:base64,filename,label})});
                     const data=await res.json();
-                    if(data.success){showToast('\u2713 Photo saved!');resolve(data);}
-                    else{showToast('Upload failed',true);resolve(null);}
-                }catch(err){showToast('Upload error',true);resolve(null);}
+                    if(data.success){showToast('\u2713 Photo saved to Drive!');done(data);}
+                    else{showToast('Upload failed',true);done(null);}
+                }catch(err){showToast('Upload error',true);done(null);}
             };reader.readAsDataURL(file);
-        };input.click();
+        };
+        input.click();
     });
 }
 async function takeReceiptPhoto(){
