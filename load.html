@@ -148,8 +148,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     }
 });
 let loadCart=[],allItems=[],pendingItem=null,activeCategory='All',searchQ='',existingLoad=[];
-const CAT_MAP={'1':'Meats','2':'Specialty','3':'Seafood'};
-function getCategory(sku){const f=(sku||'').toString().charAt(0);return CAT_MAP[f]||'Other';}
+function getCategory(sku){ return (typeof getItemCategory === 'function') ? getItemCategory(sku) : 'Others'; }
 function buildCategoryTabs(){
     const cats=['All',...new Set(allItems.map(i=>getCategory(i.sku)))];
     document.getElementById('catTabs').innerHTML=cats.map(c=>`<div class="cat-tab ${c===activeCategory?'active':''}" onclick="setCategory('${c}')">${c}</div>`).join('');

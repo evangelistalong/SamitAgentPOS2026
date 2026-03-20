@@ -229,8 +229,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 let cart=[],allItems=[],customers=[],selCustomer=null,includePrevBal=false,discounts=[false,false,false],payMethod='Cash',pendingItem=null,activeCategory='All',searchQ='';
 const RATES=()=>[CONFIG.DISCOUNT_1_PCT||0.03,CONFIG.DISCOUNT_2_PCT||0.02,CONFIG.DISCOUNT_3_PCT||0.01];
-const CAT_MAP={'1':'Meats','2':'Specialty','3':'Seafood'};
-function getCategory(sku){const f=(sku||'').toString().charAt(0);return CAT_MAP[f]||'Other';}
+function getCategory(sku){ return (typeof getItemCategory === 'function') ? getItemCategory(sku) : 'Others'; }
 function buildCategoryTabs(){
     const cats=['All',...new Set(allItems.map(i=>getCategory(i.sku)))];
     document.getElementById('catTabs').innerHTML=cats.map(c=>`<div class="cat-tab ${c===activeCategory?'active':''}" onclick="setCategory('${c}')">${c}</div>`).join('');
