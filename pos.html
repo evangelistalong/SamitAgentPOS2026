@@ -370,11 +370,15 @@ function filterCustPicker(){
 }
 function selectCustomer(code,name,balance){
     selCustomer={code,name,balance};
-    // Show selected state
-    document.getElementById('custEmpty').style.display='none';
-    document.getElementById('custSelected').style.display='block';
-    document.getElementById('custNameLbl').textContent=name;
-    document.getElementById('custCodeLbl').textContent='Code: '+code;
+    // Show selected state (safe null checks since main card was simplified)
+    const custEmpty=document.getElementById('custEmpty');
+    const custSelected=document.getElementById('custSelected');
+    if(custEmpty)custEmpty.style.display='none';
+    if(custSelected)custSelected.style.display='flex';
+    const custNameLbl=document.getElementById('custNameLbl');
+    if(custNameLbl)custNameLbl.textContent=name;
+    const custCodeLbl=document.getElementById('custCodeLbl');
+    if(custCodeLbl)custCodeLbl.textContent='Code: '+code;
     // Balance card
     const balCard=document.getElementById('custBalCard');
     const balLbl=document.getElementById('custBalLbl');
