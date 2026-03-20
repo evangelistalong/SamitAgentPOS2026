@@ -562,6 +562,8 @@ function calcPay(){
     document.getElementById('payChange').textContent=fmt(change);
     document.getElementById('remainingRow').style.display=remaining>0.01?'flex':'none';
     document.getElementById('payRemaining').textContent=fmt(remaining);
+    // Always disable Complete if anything still remaining
+    document.getElementById('completeBtn').disabled=remaining>0.01;
     if(credit>0&&selCustomer){document.getElementById('newBalRow').style.display='flex';document.getElementById('payNewBal').textContent=fmt((selCustomer.balance||0)+credit);}
     else document.getElementById('newBalRow').style.display='none';
     document.getElementById('completeBtn').disabled=remaining>0.01;
