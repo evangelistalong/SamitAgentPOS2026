@@ -145,6 +145,7 @@
         <div style="padding-top:8px;border-top:1px solid var(--border);margin-top:4px;">
             <div class="flex-between text-sm mb-1"><span class="text-muted">Subtotal</span><span id="cartSub">&#8369;0</span></div>
             <div class="flex-between text-sm mb-1" id="cartDiscRow" style="display:none;"><span class="text-red">Discount (<span id="cartDiscPct"></span>)</span><span class="text-red" id="cartDiscAmt"></span></div>
+        <div id="cartDiscLines" style="display:none;"></div>
             <div class="flex-between fw-bold" style="font-size:1rem;"><span>Total</span><span class="text-accent" id="cartTotal">&#8369;0</span></div>
             <div class="flex-between text-sm mt-1" id="cartPrevRow" style="display:none;"><span class="text-muted">Prev. Balance</span><span class="text-red" id="cartPrevBal"></span></div>
             <div class="flex-between fw-bold mt-1" id="cartGrandRow" style="display:none;"><span>Grand Total</span><span class="text-accent" id="cartGrand"></span></div>
@@ -315,7 +316,13 @@ function confirmQty(){
     showToast(qty+'\u00d7 '+(existing?'updated':'added'));
     updateFloatBtn();renderGrid();
 }
-function discMultiplier(){let t=0;discounts.forEach((on,i)=>{if(on)t+=RATES()[i];});return 1-Math.min(t,0.99);}
+function discMultiplier(){
+    // Compound discounts: each applied sequentially on the already-discounted price
+    // e.g. 3% then 2% = ×0.97×0.98 = 0.9506, NOT ×0.95
+    let mult=1;
+    discounts.forEach((on,i)=>{if(on)mult*=(1-RATES()[i]);});
+    return mult;
+}
 function getCartTotal(){const m=discMultiplier();const d=cart.filter(c=>c.discountable).reduce((s,c)=>s+c.qty*c.price,0);const n=cart.filter(c=>!c.discountable).reduce((s,c)=>s+c.qty*c.price,0);return d*m+n;}
 function updateFloatBtn(){
     const btn=document.getElementById('floatCartBtn');
@@ -352,8 +359,23 @@ function renderCartTotals(){
     const discAmt=d*(1-m);const total=d*m+n;
     const prev=includePrevBal?(parseFloat(document.getElementById('prevBalInput').value)||0):0;
     document.getElementById('cartSub').textContent=fmt(d+n);
-    if(discAmt>0){document.getElementById('cartDiscRow').style.display='flex';document.getElementById('cartDiscPct').textContent=((1-m)*100).toFixed(2)+'%';document.getElementById('cartDiscAmt').textContent='-'+fmt(discAmt);}
-    else document.getElementById('cartDiscRow').style.display='none';
+    // Show each active discount as a separate line
+    document.getElementById('cartDiscRow').style.display='none'; // hide combined row
+    const discContainer=document.getElementById('cartDiscLines');
+    if(discContainer){
+        let runPrice=d;let linesHtml='';
+        const rts=RATES();
+        discounts.forEach((on,i)=>{
+            if(on){
+                const lineAmt=runPrice*rts[i];
+                const lbl=document.getElementById('dl'+i)?document.getElementById('dl'+i).textContent:(rts[i]*100)+'%';
+                linesHtml+='<div class="flex-between text-sm mb-1"><span class="text-red">'+lbl+' Discount</span><span class="text-red">-'+fmt(lineAmt)+'</span></div>';
+                runPrice-=lineAmt;
+            }
+        });
+        discContainer.innerHTML=linesHtml;
+        discContainer.style.display=linesHtml?'block':'none';
+    }
     document.getElementById('cartTotal').textContent=fmt(total);
     if(prev>0){document.getElementById('cartPrevRow').style.display='flex';document.getElementById('cartGrandRow').style.display='flex';document.getElementById('cartPrevBal').textContent=fmt(prev);document.getElementById('cartGrand').textContent=fmt(total+prev);}
     else{document.getElementById('cartPrevRow').style.display='none';document.getElementById('cartGrandRow').style.display='none';}
@@ -672,7 +694,17 @@ function showLocalReceipt(p){
     html+=`<div class="receipt-divider"></div>`;
     p.items.forEach(i=>{const lt=i.qty*i.price*(i.discountable?mult:1);html+=`<div>${i.name}</div><div class="receipt-line"><span>&nbsp;&nbsp;${i.qty} \u00d7 ${fmtN(i.price)}</span><span>${fmtN(lt)}</span></div>`;});
     html+=`<div class="receipt-divider"></div><div class="receipt-line"><span>Subtotal</span><span>${fmtN(discSub+nonDisc)}</span></div>`;
-    if(discAmt>0)html+=`<div class="receipt-line"><span>Discount (${p.discountPct.toFixed(2)}%)</span><span>-${fmtN(discAmt)}</span></div>`;
+    // Show each active discount line on receipt
+        const rts2 = RATES();
+        let runPrice2 = discSub;
+        discounts.forEach((on,i)=>{
+            if(on){
+                const lineAmt2 = runPrice2 * rts2[i];
+                const pct2 = (rts2[i]*100).toFixed(0);
+                html+=`<div class="receipt-line"><span>${pct2}% Discount</span><span>-${fmtN(lineAmt2)}</span></div>`;
+                runPrice2 -= lineAmt2;
+            }
+        });
     html+=`<div class="receipt-line receipt-total"><span>Total</span><span>${fmtN(total)}</span></div>`;
     if(p.previousBalance>0){html+=`<div class="receipt-line"><span>Prev Balance</span><span>${fmtN(p.previousBalance)}</span></div>`;html+=`<div class="receipt-line receipt-total"><span>Grand Total</span><span>${fmtN(p.total)}</span></div>`;}
     html+=`<div class="receipt-divider"></div>`;
