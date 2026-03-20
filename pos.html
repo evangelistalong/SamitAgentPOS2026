@@ -4,140 +4,158 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#1a5c2e">
+    <link rel="icon" href="data:,">
     <title>New Sale</title>
     <link rel="stylesheet" href="base.css">
     <style>
-        .receipt { background:#fff; color:#000; padding:20px; border-radius:var(--radius); font-family:'Courier New',monospace; font-size:0.8rem; line-height:1.5; }
-        .receipt-header { text-align:center; margin-bottom:12px; }
-        .receipt-line { display:flex; justify-content:space-between; }
-        .receipt-divider { border-top:1px dashed #000; margin:8px 0; }
-        .receipt-total { font-weight:bold; font-size:1rem; }
-        .cart-badge {
-            background: var(--red); color: #fff; border-radius: 50%;
-            font-size: 0.65rem; font-weight: 700; min-width: 18px; height: 18px;
-            display: inline-flex; align-items: center; justify-content: center;
-            margin-left: 4px; padding: 0 4px; vertical-align: middle;
-        }
-        .photo-btn {
-            display: flex; align-items: center; justify-content: center; gap: 6px;
-            padding: 9px 14px; border-radius: 8px; font-size: 0.82rem;
-            font-weight: 600; cursor: pointer; border: 1px solid var(--border);
-            background: rgba(96,165,250,0.1); color: var(--blue);
-            width: 100%; margin-top: 8px;
-        }
-        .photo-btn:active { background: rgba(96,165,250,0.25); }
-        .version-bar {
-            text-align: center; font-size: 0.68rem; color: var(--text2);
-            padding: 4px 0 2px; letter-spacing: 0.03em;
-        }
-        .footer-bar {
-            text-align: center; font-size: 0.65rem; color: var(--text2);
-            padding: 12px 0 20px; opacity: 0.5;
-        }
+        .receipt{background:#fff;color:#000;padding:20px;border-radius:var(--radius);font-family:'Courier New',monospace;font-size:0.8rem;line-height:1.5}
+        .receipt-header{text-align:center;margin-bottom:12px}
+        .receipt-line{display:flex;justify-content:space-between}
+        .receipt-divider{border-top:1px dashed #000;margin:8px 0}
+        .receipt-total{font-weight:bold;font-size:1rem}
+        .cat-tabs{display:flex;gap:6px;overflow-x:auto;padding:0 0 8px;scrollbar-width:none;margin-bottom:8px}
+        .cat-tabs::-webkit-scrollbar{display:none}
+        .cat-tab{flex-shrink:0;padding:5px 14px;border-radius:20px;font-size:0.75rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text2);white-space:nowrap}
+        .cat-tab.active{background:var(--accent);color:#000;border-color:var(--accent)}
+        .item-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding-bottom:110px}
+        .item-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 8px;display:flex;flex-direction:column;align-items:center;text-align:center;cursor:pointer;position:relative;transition:background 0.15s;user-select:none}
+        .item-card:active{background:var(--bg3)}
+        .item-card.in-cart{border-color:var(--accent);background:rgba(212,168,67,0.1)}
+        .item-card.sold-out{opacity:0.4;cursor:not-allowed}
+        .item-card .ic-name{font-size:0.72rem;font-weight:600;line-height:1.3;margin-bottom:4px;min-height:2.6em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+        .item-card .ic-price{font-size:0.8rem;font-weight:700;color:var(--accent)}
+        .item-card .ic-stock{font-size:0.62rem;color:var(--text2);margin-top:1px}
+        .item-card .ic-badge{position:absolute;top:4px;right:4px;background:var(--accent);color:#000;border-radius:50%;width:18px;height:18px;font-size:0.6rem;font-weight:700;display:flex;align-items:center;justify-content:center}
+        .item-card .ic-nd{position:absolute;top:4px;left:4px;background:var(--red);color:#fff;border-radius:3px;font-size:0.55rem;font-weight:700;padding:1px 3px}
+        .float-cart{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--accent);color:#000;border:none;border-radius:24px;padding:12px 28px;font-size:0.9rem;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.5);display:flex;align-items:center;gap:10px;z-index:100}
+        .float-cart:active{transform:translateX(-50%) scale(0.96)}
+        .fc-count{background:#000;color:var(--accent);border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700}
+        .cart-item{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--border)}
+        .cart-item:last-child{border-bottom:none}
+        .ci-info{flex:1;min-width:0}
+        .ci-name{font-size:0.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .ci-price{font-size:0.7rem;color:var(--text2)}
+        .ci-total{font-size:0.85rem;font-weight:700;color:var(--accent);min-width:60px;text-align:right}
+        .disc-row{display:flex;gap:8px;margin:8px 0}
+        .disc-pill{flex:1;padding:7px 4px;border-radius:8px;border:1px solid var(--border);background:var(--surface);text-align:center;cursor:pointer;font-size:0.75rem;font-weight:600;color:var(--text2)}
+        .disc-pill.active{background:rgba(212,168,67,0.2);border-color:var(--accent);color:var(--accent)}
+        .photo-btn{display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 14px;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:rgba(96,165,250,0.1);color:var(--blue);width:100%;margin-top:8px}
+        .version-bar{text-align:center;font-size:0.68rem;color:var(--text2);padding:4px 0 2px}
+        .footer-bar{text-align:center;font-size:0.65rem;color:var(--text2);padding:12px 0 20px;opacity:0.5}
     </style>
 </head>
 <body>
 <div class="version-bar" id="versionBar">v&#8203;</div>
 <div class="topbar">
     <a href="index.html" class="topbar-back">&#8249;</a>
-    <h1>&#x1f6d2; New Sale <span id="cartBadge" class="cart-badge" style="display:none;">0</span></h1>
+    <h1>&#x1f6d2; New Sale</h1>
     <a href="#" class="topbar-action text-sm" onclick="showHistory();return false;">&#128203;</a>
 </div>
-
-<div class="content">
-    <!-- Customer -->
-    <div class="card mb-4">
+<div class="content" style="padding-bottom:0;">
+    <div class="card mb-3" style="padding:10px 12px;">
         <div class="flex-between">
-            <div class="card-title" style="margin:0;">Customer</div>
-            <button class="btn btn-sm" style="padding:4px 10px;font-size:0.7rem;background:var(--accent);color:#000;" onclick="showAddCustomer()">+ New</button>
-        </div>
-        <div class="search-bar mt-2" style="margin-bottom:0;">
-            <input type="text" class="input-field" id="customerSearch" placeholder="Search customer..." autocomplete="off" onfocus="showCustomerList()" oninput="filterCustomers()">
-        </div>
-        <div id="selectedCustomer" class="hidden mt-2 flex-between">
-            <div>
-                <span class="fw-bold" id="custName"></span>
-                <span class="text-muted text-sm" id="custBalance"></span>
-            </div>
-            <button class="btn btn-sm btn-outline" onclick="clearCustomer()">&#10005;</button>
-        </div>
-        <div id="customerList" class="hidden" style="max-height:200px;overflow-y:auto;margin-top:8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);"></div>
-    </div>
-
-    <!-- Add Items -->
-    <div class="card mb-4">
-        <div class="card-title">Add Items</div>
-        <div class="search-bar">
-            <input type="text" class="input-field" id="itemSearch" placeholder="Search items..." autocomplete="off" oninput="searchItems()" onfocus="showItemDropdown()">
-        </div>
-        <div id="itemResults" class="hidden" style="max-height:250px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);"></div>
-    </div>
-
-    <!-- Cart - Discountable -->
-    <div id="discountableSection">
-        <div class="flex-between mb-2">
-            <div class="card-title" style="margin:0;">Discountable Items</div>
-            <span class="text-accent text-sm fw-bold" id="discSubtotal">&#8369;0.00</span>
-        </div>
-        <div id="discountableCart"></div>
-        <div class="grid-3 mt-2 mb-4" id="discountToggles">
-            <div class="discount-toggle" onclick="toggleDiscount(0)" id="disc0">
-                <div class="discount-check" id="disc0Check"></div>
-                <div><div class="fw-bold text-sm" id="disc0Label">3%</div></div>
-            </div>
-            <div class="discount-toggle" onclick="toggleDiscount(1)" id="disc1">
-                <div class="discount-check" id="disc1Check"></div>
-                <div><div class="fw-bold text-sm" id="disc1Label">2%</div></div>
-            </div>
-            <div class="discount-toggle" onclick="toggleDiscount(2)" id="disc2">
-                <div class="discount-check" id="disc2Check"></div>
-                <div><div class="fw-bold text-sm" id="disc2Label">1%</div></div>
+            <div id="custDisplay" style="font-size:0.85rem;color:var(--text2);">&#128101; Walk-in</div>
+            <div style="display:flex;gap:6px;">
+                <button class="btn btn-sm btn-outline" style="padding:4px 8px;font-size:0.7rem;" onclick="showAddCustomer()">+ New</button>
+                <button class="btn btn-sm" style="padding:4px 10px;font-size:0.7rem;background:var(--accent);color:#000;" onclick="openCustPicker()">Select</button>
             </div>
         </div>
+        <div id="custBalDisplay" style="display:none;font-size:0.72rem;color:var(--red);margin-top:3px;"></div>
     </div>
-
-    <!-- Cart - Non-Discountable -->
-    <div id="nonDiscountableSection">
-        <div class="flex-between mb-2">
-            <div class="card-title" style="margin:0;">Non-Discountable Items</div>
-            <span class="text-muted text-sm fw-bold" id="nonDiscSubtotal">&#8369;0.00</span>
-        </div>
-        <div id="nonDiscountableCart"></div>
+    <div style="margin-bottom:8px;">
+        <input type="text" class="input-field" id="itemSearch" placeholder="&#128269; Search items..." oninput="filterGrid()" autocomplete="off" style="font-size:0.85rem;">
     </div>
-
-    <!-- Totals -->
-    <div class="card mt-4" style="border-color:var(--accent);">
-        <div class="flex-between mb-2"><span class="text-muted">Subtotal</span><span id="subtotal">&#8369;0.00</span></div>
-        <div class="flex-between mb-2" id="discountRow" style="display:none;">
-            <span class="text-red">Discount (<span id="discountPctLabel">0%</span>)</span>
-            <span class="text-red" id="discountAmt">-&#8369;0.00</span>
-        </div>
-        <div class="divider"></div>
-        <div class="flex-between mb-2"><span class="fw-bold text-lg">Total</span><span class="fw-bold text-lg text-accent" id="totalAmount">&#8369;0.00</span></div>
-        <div class="flex-between" id="prevBalRow" style="display:none;"><span class="text-muted">Previous Balance</span><span class="text-red" id="prevBalAmt">&#8369;0.00</span></div>
-        <div class="flex-between mt-2" id="grandTotalRow" style="display:none;"><span class="fw-bold">Grand Total</span><span class="fw-bold text-accent" id="grandTotal">&#8369;0.00</span></div>
+    <div class="cat-tabs" id="catTabs"></div>
+    <div class="item-grid" id="itemGrid">
+        <div class="text-center text-muted" style="grid-column:span 3;padding:40px 0;"><div style="font-size:2rem;">&#8987;</div><div>Loading items...</div></div>
     </div>
-
-    <!-- Previous Balance Card -->
-    <div id="prevBalSection" class="hidden">
-        <div class="card mt-2" style="border-color:var(--red);">
-            <div class="flex-between mb-2">
-                <span class="fw-bold text-sm">Previous Balance</span>
-                <button class="btn btn-sm btn-outline" id="prevBalEditBtn" onclick="editPrevBalance()" style="font-size:0.7rem;padding:3px 8px;">&#9999;&#65039; Edit</button>
-            </div>
-            <input type="number" class="input-field" id="prevBalInput" step="0.01" min="0"
-                style="font-size:1.1rem;font-weight:700;color:var(--red);text-align:right;background:transparent;border:none;padding:4px;"
-                readonly oninput="updateTotals()">
-        </div>
-    </div>
-
-    <button class="btn btn-primary mt-4" id="proceedBtn" onclick="showPayment()" disabled>&#x1f4b3; Proceed to Payment</button>
-
     <div class="footer-bar" id="footerBar">Created by Paul Evangelista</div>
 </div>
 
+<button class="float-cart" id="floatCartBtn" style="display:none;" onclick="openCart()">
+    <span>&#x1f6d2; Cart</span>
+    <span class="fc-count" id="fcCount">0</span>
+    <span id="fcTotal" style="font-size:0.85rem;">&#8369;0</span>
+</button>
+
+<!-- Customer Picker -->
+<div class="modal-overlay" id="custPickerModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Select Customer</div>
+        <input type="text" class="input-field mb-3" id="custPickerSearch" placeholder="Search..." oninput="filterCustPicker()" autocomplete="off">
+        <div id="custPickerList" style="max-height:50vh;overflow-y:auto;"></div>
+        <button class="btn btn-secondary mt-3 btn-block" onclick="document.getElementById('custPickerModal').classList.remove('active')">Cancel</button>
+    </div>
+</div>
+<!-- Add Customer -->
+<div class="modal-overlay" id="addCustModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">&#10133; New Customer</div>
+        <div class="mb-3"><label class="text-sm text-muted">Name *</label><input type="text" class="input-field" id="newCustName" placeholder="Customer name"></div>
+        <div class="mb-3"><label class="text-sm text-muted">Route</label><input type="text" class="input-field" id="newCustRoute" placeholder="Route (optional)"></div>
+        <div class="grid-2">
+            <button class="btn btn-secondary" onclick="document.getElementById('addCustModal').classList.remove('active')">Cancel</button>
+            <button class="btn btn-primary" onclick="saveNewCustomer()">Save</button>
+        </div>
+    </div>
+</div>
+<!-- Qty Modal -->
+<div class="modal-overlay" id="qtyModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title" id="qtyTitle" style="font-size:0.9rem;"></div>
+        <div class="text-muted text-sm mb-3" id="qtyPrice"></div>
+        <div class="qty-control" style="justify-content:center;display:flex;width:100%;margin-bottom:12px;">
+            <button class="qty-btn" onclick="qtyAdj(-10)" style="width:54px;height:54px;font-size:1rem;">&#8722;10</button>
+            <button class="qty-btn" onclick="qtyAdj(-1)"  style="width:46px;height:54px;font-size:1.3rem;">&#8722;</button>
+            <input type="number" class="qty-value" id="qtyInput" value="1" min="1" style="width:80px;height:54px;font-size:1.4rem;text-align:center;" onclick="this.select()">
+            <button class="qty-btn" onclick="qtyAdj(1)"   style="width:46px;height:54px;font-size:1.3rem;">+</button>
+            <button class="qty-btn" onclick="qtyAdj(10)"  style="width:54px;height:54px;font-size:1rem;">+10</button>
+        </div>
+        <div class="grid-2">
+            <button class="btn btn-secondary" onclick="document.getElementById('qtyModal').classList.remove('active');pendingItem=null;">Cancel</button>
+            <button class="btn btn-primary" onclick="confirmQty()">Add to Cart</button>
+        </div>
+    </div>
+</div>
+<!-- Cart Modal -->
+<div class="modal-overlay" id="cartModal">
+    <div class="modal" style="max-height:92vh;display:flex;flex-direction:column;">
+        <div class="modal-handle"></div>
+        <div class="modal-title" style="margin-bottom:4px;">&#x1f6d2; Cart</div>
+        <div id="cartList" style="flex:1;overflow-y:auto;min-height:0;"></div>
+        <div id="discSection" style="display:none;padding-top:8px;border-top:1px solid var(--border);margin-top:4px;">
+            <div style="font-size:0.72rem;color:var(--text2);margin-bottom:4px;">Discount (discountable items)</div>
+            <div class="disc-row">
+                <div class="disc-pill" id="dp0" onclick="toggleDisc(0)"><span id="dl0">3%</span></div>
+                <div class="disc-pill" id="dp1" onclick="toggleDisc(1)"><span id="dl1">2%</span></div>
+                <div class="disc-pill" id="dp2" onclick="toggleDisc(2)"><span id="dl2">1%</span></div>
+            </div>
+        </div>
+        <div style="padding-top:8px;border-top:1px solid var(--border);margin-top:4px;">
+            <div class="flex-between text-sm mb-1"><span class="text-muted">Subtotal</span><span id="cartSub">&#8369;0</span></div>
+            <div class="flex-between text-sm mb-1" id="cartDiscRow" style="display:none;"><span class="text-red">Discount (<span id="cartDiscPct"></span>)</span><span class="text-red" id="cartDiscAmt"></span></div>
+            <div class="flex-between fw-bold" style="font-size:1rem;"><span>Total</span><span class="text-accent" id="cartTotal">&#8369;0</span></div>
+            <div class="flex-between text-sm mt-1" id="cartPrevRow" style="display:none;"><span class="text-muted">Prev. Balance</span><span class="text-red" id="cartPrevBal"></span></div>
+            <div class="flex-between fw-bold mt-1" id="cartGrandRow" style="display:none;"><span>Grand Total</span><span class="text-accent" id="cartGrand"></span></div>
+        </div>
+        <div id="prevBalCard" style="display:none;padding:8px 0 4px;">
+            <div class="flex-between">
+                <span style="font-size:0.75rem;color:var(--text2);">Previous balance</span>
+                <button class="btn btn-sm btn-outline" id="prevBalEditBtn" onclick="editPrevBal()" style="font-size:0.65rem;padding:2px 8px;">&#9999;&#65039; Edit</button>
+            </div>
+            <input type="number" class="input-field" id="prevBalInput" step="0.01" min="0" readonly style="font-size:0.95rem;font-weight:700;color:var(--red);text-align:right;margin-top:4px;" oninput="renderCartTotals()">
+        </div>
+        <div class="grid-2 mt-3">
+            <button class="btn btn-secondary" onclick="document.getElementById('cartModal').classList.remove('active')">&#8592; Browse</button>
+            <button class="btn btn-primary" id="checkoutBtn" onclick="showPayment()" disabled>&#x1f4b3; Checkout</button>
+        </div>
+    </div>
+</div>
 <!-- Payment Modal -->
 <div class="modal-overlay" id="paymentModal">
     <div class="modal">
@@ -149,46 +167,34 @@
         </div>
         <div class="card-title">Payment Method</div>
         <div class="grid-2 mb-4 gap-2">
-            <button class="btn btn-sm btn-primary" id="payMethodCash" onclick="setPayMethod('Cash')">&#x1f4b5; Cash</button>
-            <button class="btn btn-sm btn-outline" id="payMethodCheque" onclick="setPayMethod('Cheque')">&#x1f4dd; Cheque</button>
-            <button class="btn btn-sm btn-outline" id="payMethodGCash" onclick="setPayMethod('GCash')">&#x1f4f1; GCash</button>
-            <button class="btn btn-sm btn-outline" id="payMethodCredit" onclick="setPayMethod('Credit')">&#x1f3e6; Credit</button>
-            <button class="btn btn-sm btn-outline" id="payMethodSplit" onclick="setPayMethod('Split')" style="grid-column:span 2;">&#x1f500; Split</button>
+            <button class="btn btn-sm btn-primary" id="pmCash"   onclick="setPayMethod('Cash')">&#x1f4b5; Cash</button>
+            <button class="btn btn-sm btn-outline" id="pmCheque" onclick="setPayMethod('Cheque')">&#x1f4dd; Cheque</button>
+            <button class="btn btn-sm btn-outline" id="pmGCash"  onclick="setPayMethod('GCash')">&#x1f4f1; GCash</button>
+            <button class="btn btn-sm btn-outline" id="pmCredit" onclick="setPayMethod('Credit')">&#x1f3e6; Credit</button>
+            <button class="btn btn-sm btn-outline" id="pmSplit"  onclick="setPayMethod('Split')" style="grid-column:span 2;">&#x1f500; Split</button>
         </div>
-        <div id="cashInput"><div class="input-group"><label>Cash Amount</label><input type="number" class="input-field" id="payCash" step="0.01" oninput="calcPayment()" placeholder="0.00" inputmode="decimal"></div></div>
-        <div id="chequeInput" class="hidden">
-            <div class="input-group"><label>Cheque Amount</label><input type="number" class="input-field" id="payCheque" step="0.01" oninput="calcPayment()" placeholder="0.00" inputmode="decimal"></div>
-            <div class="input-group"><label>Cheque #</label><input type="text" class="input-field" id="payChequeNum" placeholder="Cheque #"></div>
-        </div>
-        <div id="gcashInput" class="hidden">
-            <div class="input-group"><label>GCash Amount</label><input type="number" class="input-field" id="payGCash" step="0.01" oninput="calcPayment()" placeholder="0.00" inputmode="decimal"></div>
-            <div class="input-group"><label>GCash Ref</label><input type="text" class="input-field" id="payGCashRef" placeholder="Ref #"></div>
-        </div>
-        <div id="creditInput" class="hidden">
-            <div class="input-group">
-                <label>Credit Amount <span id="creditAutoLabel" style="font-weight:400;font-size:0.7rem;color:var(--accent);display:none;">(auto)</span></label>
-                <input type="number" class="input-field" id="payCredit" step="0.01" oninput="calcPayment()" placeholder="0.00" inputmode="decimal">
-            </div>
-        </div>
+        <div id="cashInput"><div class="input-group"><label>Cash Amount</label><input type="number" class="input-field" id="payCash" step="0.01" oninput="calcPay()" placeholder="0.00" inputmode="decimal"></div></div>
+        <div id="chequeInput" class="hidden"><div class="input-group"><label>Cheque Amount</label><input type="number" class="input-field" id="payCheque" step="0.01" oninput="calcPay()" placeholder="0.00" inputmode="decimal"></div><div class="input-group"><label>Cheque #</label><input type="text" class="input-field" id="payChequeNum"></div></div>
+        <div id="gcashInput"  class="hidden"><div class="input-group"><label>GCash Amount</label><input type="number" class="input-field" id="payGCash" step="0.01" oninput="calcPay()" placeholder="0.00" inputmode="decimal"></div><div class="input-group"><label>GCash Ref</label><input type="text" class="input-field" id="payGCashRef"></div></div>
+        <div id="creditInput" class="hidden"><div class="input-group"><label>Credit Amount <span id="creditAutoLbl" style="font-size:0.7rem;color:var(--accent);display:none;">(auto)</span></label><input type="number" class="input-field" id="payCredit" step="0.01" oninput="calcPay()" placeholder="0.00" inputmode="decimal"></div></div>
         <div class="card mt-2">
-            <div class="flex-between" id="changeRow" style="display:none;"><span>Change</span><span class="text-green fw-bold" id="payChange">&#8369;0.00</span></div>
-            <div class="flex-between" id="creditBalRow" style="display:none;"><span>New Balance</span><span class="text-red fw-bold" id="payNewBal">&#8369;0.00</span></div>
-            <div class="flex-between" id="remainingRow" style="display:none;"><span class="text-red">Remaining</span><span class="text-red fw-bold" id="payRemaining">&#8369;0.00</span></div>
+            <div class="flex-between" id="changeRow"    style="display:none;"><span>Change</span><span class="text-green fw-bold" id="payChange">&#8369;0</span></div>
+            <div class="flex-between" id="newBalRow"    style="display:none;"><span>New Balance</span><span class="text-red fw-bold" id="payNewBal">&#8369;0</span></div>
+            <div class="flex-between" id="remainingRow" style="display:none;"><span class="text-red">Remaining</span><span class="text-red fw-bold" id="payRemaining">&#8369;0</span></div>
         </div>
-        <div class="input-group mt-4"><label>Notes</label><input type="text" class="input-field" id="payNotes" placeholder="Optional"></div>
+        <div class="input-group mt-3"><label>Notes</label><input type="text" class="input-field" id="payNotes" placeholder="Optional"></div>
         <div class="grid-2 mt-4">
-            <button class="btn btn-secondary" onclick="closePayment()">Cancel</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('paymentModal').classList.remove('active')">Cancel</button>
             <button class="btn btn-success" id="completeBtn" onclick="completeSale()" disabled>&#x2705; Complete</button>
         </div>
     </div>
 </div>
-
 <!-- Receipt Modal -->
 <div class="modal-overlay" id="receiptModal">
     <div class="modal">
         <div class="modal-handle"></div>
         <div class="modal-title">&#x1f9fe; Receipt</div>
-        <div id="receiptContent"></div>
+        <div id="receiptContent" style="max-height:55vh;overflow-y:auto;"></div>
         <div class="grid-2 mt-4">
             <button class="btn btn-secondary" onclick="document.getElementById('receiptModal').classList.remove('active')">Done</button>
             <button class="btn btn-primary" onclick="shareReceipt()">&#128228; Share</button>
@@ -196,571 +202,320 @@
         <button class="photo-btn" id="receiptPhotoBtn" onclick="takeReceiptPhoto()">&#128247; Take Photo of Receipt</button>
     </div>
 </div>
-
-<!-- Qty Modal -->
-<div class="modal-overlay" id="qtyModal">
-    <div class="modal">
-        <div class="modal-handle"></div>
-        <div class="modal-title" id="qtyModalTitle">Enter Quantity</div>
-        <div class="text-center mt-4 mb-4">
-            <div class="qty-control" style="justify-content:center;display:inline-flex;">
-                <button class="qty-btn" onclick="qtyModalAdjust(-10)" style="width:60px;height:60px;font-size:1.4rem;">&#8722;10</button>
-                <input type="number" class="qty-value" id="qtyModalValue" value="1" min="1" style="width:100px;height:60px;font-size:1.5rem;text-align:center;" onclick="this.select()">
-                <button class="qty-btn" onclick="qtyModalAdjust(10)" style="width:60px;height:60px;font-size:1.4rem;">+10</button>
-            </div>
-        </div>
-        <div class="grid-2">
-            <button class="btn btn-secondary" onclick="document.getElementById('qtyModal').classList.remove('active');pendingItem=null;">Cancel</button>
-            <button class="btn btn-primary" onclick="confirmQtyModal()">Add to Cart</button>
-        </div>
-    </div>
-</div>
-
 <!-- History Modal -->
 <div class="modal-overlay" id="historyModal">
     <div class="modal">
         <div class="modal-handle"></div>
-        <div class="modal-title">&#128203; Today's Transactions</div>
-        <div id="historyList"></div>
-        <button class="btn btn-secondary mt-4" onclick="document.getElementById('historyModal').classList.remove('active')">Close</button>
+        <div class="modal-title">&#128203; Today's Sales</div>
+        <div id="historyList" style="max-height:60vh;overflow-y:auto;"></div>
+        <button class="btn btn-secondary mt-4 btn-block" onclick="document.getElementById('historyModal').classList.remove('active')">Close</button>
     </div>
 </div>
-
-<!-- Add Customer Modal -->
-<div class="modal-overlay" id="addCustModal">
-    <div class="modal">
-        <div class="modal-handle"></div>
-        <div class="modal-title">&#10133; New Customer</div>
-        <div class="mb-3"><label class="text-sm text-muted">Customer Name *</label><input type="text" class="input-field" id="newCustName" placeholder="Enter customer name"></div>
-        <div class="mb-3"><label class="text-sm text-muted">Route</label><input type="text" class="input-field" id="newCustRoute" placeholder="Route (optional)"></div>
-        <div class="grid-2">
-            <button class="btn btn-secondary" onclick="document.getElementById('addCustModal').classList.remove('active')">Cancel</button>
-            <button class="btn btn-primary" onclick="saveNewCustomer()">Save</button>
-        </div>
-    </div>
-</div>
-
 <script src="config.js"></script>
 <script src="sheets.js"></script>
 <script src="base.js"></script>
 <script src="version.js"></script>
 <script>
-// Show version + footer
-document.addEventListener('DOMContentLoaded', () => {
-    if (typeof APP_VERSION !== 'undefined') {
-        document.getElementById('versionBar').textContent = 'v' + APP_VERSION;
-        document.getElementById('footerBar').textContent = 'Created by ' + APP_BUILT_BY + ' \u00b7 v' + APP_VERSION;
+document.addEventListener('DOMContentLoaded',()=>{
+    if(typeof APP_VERSION!=='undefined'){
+        document.getElementById('versionBar').textContent='v'+APP_VERSION;
+        document.getElementById('footerBar').textContent='Created by '+APP_BUILT_BY+' \u00b7 v'+APP_VERSION;
     }
-    document.getElementById('disc0Label').textContent = CONFIG.DISCOUNT_1_LABEL;
-    document.getElementById('disc1Label').textContent = CONFIG.DISCOUNT_2_LABEL;
-    document.getElementById('disc2Label').textContent = CONFIG.DISCOUNT_3_LABEL;
+    if(typeof CONFIG!=='undefined'){
+        document.getElementById('dl0').textContent=CONFIG.DISCOUNT_1_LABEL||'3%';
+        document.getElementById('dl1').textContent=CONFIG.DISCOUNT_2_LABEL||'2%';
+        document.getElementById('dl2').textContent=CONFIG.DISCOUNT_3_LABEL||'1%';
+    }
 });
-
-// === STATE ===
-let cart = [];
-let customers = [];
-let selectedCustomer = null;
-let discounts = [false, false, false];
-let includePrevBal = false;
-let payMethod = 'Cash';
-let pendingItem = null;
-let allItems = [];
-let searchTimeout;
-
-const RATES = [
-    CONFIG.DISCOUNT_1_PCT,
-    CONFIG.DISCOUNT_2_PCT,
-    CONFIG.DISCOUNT_3_PCT,
-];
-
-// === CUSTOMERS ===
-async function loadCustomers() {
-    customers = await Sheets.getCustomers();
+let cart=[],allItems=[],customers=[],selCustomer=null,includePrevBal=false,discounts=[false,false,false],payMethod='Cash',pendingItem=null,activeCategory='All',searchQ='';
+const RATES=()=>[CONFIG.DISCOUNT_1_PCT||0.03,CONFIG.DISCOUNT_2_PCT||0.02,CONFIG.DISCOUNT_3_PCT||0.01];
+const CAT_MAP={'1':'Meats','2':'Specialty','3':'Seafood'};
+function getCategory(sku){const f=(sku||'').toString().charAt(0);return CAT_MAP[f]||'Other';}
+function buildCategoryTabs(){
+    const cats=['All',...new Set(allItems.map(i=>getCategory(i.sku)))];
+    document.getElementById('catTabs').innerHTML=cats.map(c=>`<div class="cat-tab ${c===activeCategory?'active':''}" onclick="setCategory('${c}')">${c}</div>`).join('');
 }
-
-function showCustomerList() {
-    document.getElementById('customerList').classList.remove('hidden');
-    filterCustomers();
-}
-
-function filterCustomers() {
-    const q = document.getElementById('customerSearch').value.toLowerCase();
-    const filtered = customers.filter(c =>
-        c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q)
-    ).slice(0, 20);
-    const el = document.getElementById('customerList');
-    if (!filtered.length) { el.classList.add('hidden'); return; }
-    el.innerHTML = filtered.map(c => `
-        <div class="list-item" onclick="selectCustomer('${c.code}','${c.name.replace(/'/g,"\\'")}',${c.balance})" style="padding:10px 12px;margin-bottom:4px;">
-            <div class="list-item-info"><div class="list-item-name">${c.name}</div></div>
-            <div class="list-item-right">
-                ${c.balance > 0 ? '<div class="text-red text-sm">Balance: ' + fmt(c.balance) + '</div>' : ''}
-            </div>
-        </div>`).join('');
-    el.classList.remove('hidden');
-}
-
-function selectCustomer(code, name, balance) {
-    selectedCustomer = { code, name, balance };
-    document.getElementById('customerSearch').classList.add('hidden');
-    document.getElementById('customerList').classList.add('hidden');
-    document.getElementById('selectedCustomer').classList.remove('hidden');
-    document.getElementById('custName').textContent = name;
-    document.getElementById('custBalance').textContent = balance > 0 ? ' \u2014 Balance: ' + fmt(balance) : '';
-    if (balance > 0) {
-        document.getElementById('prevBalSection').classList.remove('hidden');
-        document.getElementById('prevBalInput').value = balance.toFixed(2);
-        includePrevBal = true;
-    }
-    updateTotals();
-}
-
-function clearCustomer() {
-    selectedCustomer = null;
-    includePrevBal = false;
-    document.getElementById('customerSearch').classList.remove('hidden');
-    document.getElementById('customerSearch').value = '';
-    document.getElementById('selectedCustomer').classList.add('hidden');
-    document.getElementById('prevBalSection').classList.add('hidden');
-    document.getElementById('prevBalInput').value = '0';
-    updateTotals();
-}
-
-function editPrevBalance() {
-    const input = document.getElementById('prevBalInput');
-    if (input.readOnly) {
-        input.readOnly = false;
-        input.style.border = '1px solid var(--accent)';
-        input.style.borderRadius = '6px';
-        input.style.padding = '6px';
-        input.focus(); input.select();
-        document.getElementById('prevBalEditBtn').textContent = '\u2713 Done';
-    } else {
-        input.readOnly = true;
-        input.style.border = 'none';
-        input.style.padding = '4px';
-        document.getElementById('prevBalEditBtn').textContent = '\u270f\ufe0f Edit';
-        updateTotals();
-    }
-}
-
-function showAddCustomer() { document.getElementById('addCustModal').classList.add('active'); }
-
-async function saveNewCustomer() {
-    const name = document.getElementById('newCustName').value.trim();
-    if (!name) { showToast('Enter customer name', true); return; }
-    const code = 'NEW-' + Date.now();
-    const result = await Sheets.writeRows('customer_add', { code, name, route: document.getElementById('newCustRoute').value, balance: 0 });
-    if (result.success || result.offline) {
-        Cache.clear('customers');
-        customers = await Sheets.getCustomers();
-        customers.push({ code, name, balance: 0 });
-        selectCustomer(code, name, 0);
-        document.getElementById('addCustModal').classList.remove('active');
-        document.getElementById('newCustName').value = '';
-        document.getElementById('newCustRoute').value = '';
-        showToast('Customer added');
-    }
-}
-
-// === ITEMS ===
-async function loadAllItems() {
-    allItems = await Sheets.getLoadedItems();
-}
-
-function showItemDropdown() {
-    const q = document.getElementById('itemSearch').value.trim().toLowerCase();
-    let filtered = allItems;
-    if (q.length > 0) filtered = allItems.filter(i => i.name.toLowerCase().includes(q) || i.sku.toLowerCase().includes(q));
-    const available = filtered.filter(i => i.remaining > 0);
-    const soldOut = filtered.filter(i => i.remaining <= 0);
-    const el = document.getElementById('itemResults');
-    if (!filtered.length) {
-        el.innerHTML = allItems.length
-            ? '<div class="text-center text-muted" style="padding:12px;">No matching items</div>'
-            : '<div class="text-center text-muted" style="padding:12px;">No items loaded today.<br><a href="load.html" style="color:var(--accent);">Go to Truck Load \u2192</a></div>';
-        el.classList.remove('hidden'); return;
-    }
-    let html = available.slice(0, 30).map(item => `
-        <div class="list-item" onclick='addItemPrompt(${JSON.stringify(item).replace(/'/g,"&#39;")})' style="padding:10px 12px;margin-bottom:4px;">
-            <div class="list-item-info">
-                <div class="list-item-name" style="font-size:0.85rem;">${item.name}</div>
-                <div class="list-item-sub">SKU: ${item.sku} \u2022 <span style="color:var(--green);">${item.remaining} left</span>${!item.discountable ? ' \u2022 <span class=text-red>No Disc</span>' : ''}</div>
-            </div>
-            <div class="list-item-right"><div class="list-item-price">${fmt(item.wholesale || item.price)}</div></div>
-        </div>`).join('');
-    if (soldOut.length) html += `<div class="text-center text-muted text-sm" style="padding:6px;opacity:0.5;">\u2014 ${soldOut.length} sold out \u2014</div>`;
-    el.innerHTML = html || '<div class="text-center text-muted" style="padding:12px;">All items sold out!</div>';
-    el.classList.remove('hidden');
-}
-
-function searchItems() { clearTimeout(searchTimeout); searchTimeout = setTimeout(showItemDropdown, 150); }
-
-function addItemPrompt(item) {
-    pendingItem = item;
-    document.getElementById('qtyModalTitle').textContent = item.name;
-    document.getElementById('qtyModalValue').value = 1;
-    document.getElementById('qtyModal').classList.add('active');
-}
-function qtyModalAdjust(delta) {
-    const el = document.getElementById('qtyModalValue');
-    let v = parseInt(el.value) + delta;
-    if (v < 1) v = 1;
-    el.value = v;
-}
-function confirmQtyModal() {
-    if (!pendingItem) return;
-    const qty = parseInt(document.getElementById('qtyModalValue').value) || 1;
-    addToCart(pendingItem, qty);
-    document.getElementById('qtyModal').classList.remove('active');
-    document.getElementById('itemSearch').value = '';
-    document.getElementById('itemResults').classList.add('hidden');
-    pendingItem = null;
-}
-
-// === CART ===
-function updateCartBadge() {
-    const count = cart.reduce((s, c) => s + c.qty, 0);
-    const badge = document.getElementById('cartBadge');
-    if (badge) {
-        badge.textContent = count;
-        badge.style.display = count > 0 ? 'inline-flex' : 'none';
-    }
-}
-
-function addToCart(item, qty) {
-    const price = item.wholesale || item.price;
-    const existing = cart.find(c => c.sku === item.sku);
-    if (existing) { existing.qty += qty; }
-    else { cart.push({ sku: item.sku, name: item.name, price, qty, discountable: item.discountable !== false, commission: item.commission || 0 }); }
-    showToast(qty + '\u00d7 ' + item.name + ' added');
-    renderCart(); updateTotals();
-}
-function removeFromCart(i) { cart.splice(i, 1); renderCart(); updateTotals(); }
-function updateQty(i, delta) { cart[i].qty = Math.max(1, cart[i].qty + delta); renderCart(); updateTotals(); }
-function setQty(i, v) { cart[i].qty = Math.max(1, parseInt(v) || 1); renderCart(); updateTotals(); }
-
-function renderCart() {
-    const discItems = cart.filter(c => c.discountable);
-    const nonDiscItems = cart.filter(c => !c.discountable);
-    const renderItem = item => {
-        const i = cart.indexOf(item);
-        return `<div class="list-item" style="padding:10px 12px;margin-bottom:4px;">
-            <div class="list-item-info" style="min-width:0;">
-                <div class="list-item-name" style="font-size:0.85rem;">${item.name}</div>
-                <div class="list-item-sub">${fmt(item.price)} each</div>
-            </div>
-            <div style="display:flex;align-items:center;gap:8px;">
-                <div class="qty-control">
-                    <button class="qty-btn" onclick="updateQty(${i},-1)">\u2212</button>
-                    <input type="number" class="qty-value" value="${item.qty}" min="1"
-                        style="width:55px;text-align:center;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.9rem;padding:4px;"
-                        onchange="setQty(${i},this.value)" onclick="this.select()">
-                    <button class="qty-btn" onclick="updateQty(${i},1)">+</button>
-                </div>
-                <div style="width:70px;text-align:right;">
-                    <div class="text-accent fw-bold text-sm">${fmt(item.qty * item.price)}</div>
-                </div>
-                <button onclick="removeFromCart(${i})" style="background:none;border:none;color:var(--red);font-size:1.1rem;cursor:pointer;">\u2715</button>
-            </div>
+function setCategory(cat){activeCategory=cat;buildCategoryTabs();renderGrid();}
+function renderGrid(){
+    const q=searchQ.toLowerCase();
+    let items=allItems;
+    if(activeCategory!=='All')items=items.filter(i=>getCategory(i.sku)===activeCategory);
+    if(q)items=items.filter(i=>i.name.toLowerCase().includes(q)||i.sku.includes(q));
+    const el=document.getElementById('itemGrid');
+    if(!items.length){el.innerHTML='<div class="text-center text-muted" style="grid-column:span 3;padding:30px 0;"><div style="font-size:2rem;">&#128269;</div><div>No items</div></div>';return;}
+    el.innerHTML=items.map(item=>{
+        const inCart=cart.find(c=>c.sku===item.sku);
+        const soldOut=(item.remaining!==undefined)&&item.remaining<=0;
+        const safeItem=JSON.stringify(item).replace(/"/g,'&quot;');
+        return`<div class="item-card ${inCart?'in-cart':''} ${soldOut?'sold-out':''}" onclick="${soldOut?'showToast(\'Sold out\',true)':'promptQty(JSON.parse(this.dataset.item))'}">
+            ${!item.discountable?'<span class="ic-nd">ND</span>':''}
+            ${inCart?'<span class="ic-badge">'+inCart.qty+'</span>':''}
+            <div class="ic-name">${item.name}</div>
+            <div class="ic-price">${fmt(item.wholesale||item.price)}</div>
+            ${item.remaining!==undefined?'<div class="ic-stock">'+(soldOut?'Sold out':item.remaining+' left')+'</div>':''}
+            <span style="display:none;" data-item="${safeItem}"></span>
         </div>`;
-    };
-    document.getElementById('discountableSection').style.display = discItems.length ? 'block' : 'none';
-    document.getElementById('nonDiscountableSection').style.display = nonDiscItems.length ? 'block' : 'none';
-    document.getElementById('discountableCart').innerHTML = discItems.map(renderItem).join('');
-    document.getElementById('nonDiscountableCart').innerHTML = nonDiscItems.map(renderItem).join('');
-    updateCartBadge();
-}
-
-// === TOTALS ===
-function calcDiscountMultiplier() {
-    let total = 0;
-    discounts.forEach((on, i) => { if (on) total += RATES[i]; });
-    return 1 - Math.min(total, 0.99);
-}
-
-function updateTotals() {
-    const mult = calcDiscountMultiplier();
-    const discSub = cart.filter(c => c.discountable).reduce((s, c) => s + c.qty * c.price, 0);
-    const nonDiscSub = cart.filter(c => !c.discountable).reduce((s, c) => s + c.qty * c.price, 0);
-    const discountAmt = discSub * (1 - mult);
-    const total = discSub + nonDiscSub - discountAmt;
-    const prevBal = includePrevBal ? (parseFloat(document.getElementById('prevBalInput').value) || 0) : 0;
-    const grandTotal = total + prevBal;
-
-    document.getElementById('discSubtotal').textContent = fmt(discSub);
-    document.getElementById('nonDiscSubtotal').textContent = fmt(nonDiscSub);
-    document.getElementById('subtotal').textContent = fmt(discSub + nonDiscSub);
-    document.getElementById('totalAmount').textContent = fmt(total);
-
-    const discPct = (1 - mult) * 100;
-    if (discountAmt > 0) {
-        document.getElementById('discountRow').style.display = 'flex';
-        document.getElementById('discountPctLabel').textContent = discPct.toFixed(2) + '%';
-        document.getElementById('discountAmt').textContent = '-' + fmt(discountAmt);
-    } else { document.getElementById('discountRow').style.display = 'none'; }
-
-    if (prevBal > 0) {
-        document.getElementById('prevBalRow').style.display = 'flex';
-        document.getElementById('grandTotalRow').style.display = 'flex';
-        document.getElementById('prevBalAmt').textContent = fmt(prevBal);
-        document.getElementById('grandTotal').textContent = fmt(grandTotal);
-    } else {
-        document.getElementById('prevBalRow').style.display = 'none';
-        document.getElementById('grandTotalRow').style.display = 'none';
-    }
-    document.getElementById('proceedBtn').disabled = cart.length === 0;
-}
-
-function toggleDiscount(i) {
-    discounts[i] = !discounts[i];
-    document.getElementById('disc' + i).classList.toggle('active', discounts[i]);
-    document.getElementById('disc' + i + 'Check').textContent = discounts[i] ? '\u2713' : '';
-    updateTotals();
-}
-
-// === PAYMENT ===
-function getAmountDue() {
-    const mult = calcDiscountMultiplier();
-    const discSub = cart.filter(c => c.discountable).reduce((s, c) => s + c.qty * c.price, 0);
-    const nonDiscSub = cart.filter(c => !c.discountable).reduce((s, c) => s + c.qty * c.price, 0);
-    const total = (discSub + nonDiscSub) - discSub * (1 - mult);
-    const prevBal = includePrevBal ? (parseFloat(document.getElementById('prevBalInput').value) || 0) : 0;
-    return total + prevBal;
-}
-
-function showPayment() {
-    document.getElementById('payDue').textContent = fmt(getAmountDue());
-    setPayMethod('Cash');
-    ['payCash','payCheque','payGCash','payCredit','payChequeNum','payGCashRef','payNotes'].forEach(id => {
-        const el = document.getElementById(id); if (el) el.value = '';
+    }).join('');
+    // Attach item data via dataset
+    document.querySelectorAll('.item-card:not(.sold-out)').forEach((card,idx)=>{
+        const span=card.querySelector('[data-item]');
+        if(span)card.dataset.item=span.getAttribute('data-item');
     });
-    calcPayment();
+}
+function filterGrid(){searchQ=document.getElementById('itemSearch').value;renderGrid();}
+function promptQty(item){
+    pendingItem=item;
+    const existing=cart.find(c=>c.sku===item.sku);
+    document.getElementById('qtyTitle').textContent=item.name;
+    document.getElementById('qtyPrice').textContent=fmt(item.wholesale||item.price)+' each';
+    document.getElementById('qtyInput').value=existing?existing.qty:1;
+    document.getElementById('qtyModal').classList.add('active');
+    setTimeout(()=>document.getElementById('qtyInput').select(),200);
+}
+function qtyAdj(d){const el=document.getElementById('qtyInput');el.value=Math.max(1,(parseInt(el.value)||0)+d);}
+function confirmQty(){
+    if(!pendingItem)return;
+    const qty=parseInt(document.getElementById('qtyInput').value)||1;
+    const price=pendingItem.wholesale||pendingItem.price;
+    const existing=cart.find(c=>c.sku===pendingItem.sku);
+    if(existing){existing.qty=qty;}
+    else{cart.push({sku:pendingItem.sku,name:pendingItem.name,price,qty,discountable:pendingItem.discountable!==false,commission:pendingItem.commission||0});}
+    document.getElementById('qtyModal').classList.remove('active');
+    pendingItem=null;
+    showToast(qty+'\u00d7 '+(existing?'updated':'added'));
+    updateFloatBtn();renderGrid();
+}
+function discMultiplier(){let t=0;discounts.forEach((on,i)=>{if(on)t+=RATES()[i];});return 1-Math.min(t,0.99);}
+function getCartTotal(){const m=discMultiplier();const d=cart.filter(c=>c.discountable).reduce((s,c)=>s+c.qty*c.price,0);const n=cart.filter(c=>!c.discountable).reduce((s,c)=>s+c.qty*c.price,0);return d*m+n;}
+function updateFloatBtn(){
+    const btn=document.getElementById('floatCartBtn');
+    const qty=cart.reduce((s,c)=>s+c.qty,0);
+    if(!qty){btn.style.display='none';return;}
+    btn.style.display='flex';
+    document.getElementById('fcCount').textContent=qty;
+    document.getElementById('fcTotal').textContent=fmt(getCartTotal());
+}
+function openCart(){renderCartList();renderCartTotals();document.getElementById('cartModal').classList.add('active');}
+function renderCartList(){
+    const el=document.getElementById('cartList');
+    if(!cart.length){el.innerHTML='<div class="text-center text-muted" style="padding:20px;">Cart is empty</div>';document.getElementById('checkoutBtn').disabled=true;document.getElementById('discSection').style.display='none';return;}
+    document.getElementById('discSection').style.display=cart.some(c=>c.discountable)?'block':'none';
+    document.getElementById('checkoutBtn').disabled=false;
+    el.innerHTML=cart.map((item,i)=>`<div class="cart-item">
+        <div class="ci-info"><div class="ci-name">${item.name}</div><div class="ci-price">${fmt(item.price)} \u00d7 ${item.qty}${!item.discountable?' <span style="color:var(--red);font-size:0.6rem;">ND</span>':''}</div></div>
+        <div class="qty-control" style="gap:4px;">
+            <button class="qty-btn" onclick="cartAdj(${i},-1)" style="width:30px;height:30px;font-size:1rem;">&#8722;</button>
+            <span style="width:28px;text-align:center;font-weight:700;">${item.qty}</span>
+            <button class="qty-btn" onclick="cartAdj(${i},1)"  style="width:30px;height:30px;font-size:1rem;">+</button>
+        </div>
+        <div class="ci-total">${fmt(item.qty*item.price)}</div>
+        <button onclick="removeFromCart(${i})" style="background:none;border:none;color:var(--red);font-size:1.1rem;cursor:pointer;padding:0 4px;">\u2715</button>
+    </div>`).join('');
+}
+function cartAdj(i,d){cart[i].qty=Math.max(1,cart[i].qty+d);renderCartList();renderCartTotals();updateFloatBtn();renderGrid();}
+function removeFromCart(i){cart.splice(i,1);renderCartList();renderCartTotals();updateFloatBtn();renderGrid();}
+function toggleDisc(i){discounts[i]=!discounts[i];document.getElementById('dp'+i).classList.toggle('active',discounts[i]);renderCartTotals();updateFloatBtn();}
+function renderCartTotals(){
+    const m=discMultiplier();
+    const d=cart.filter(c=>c.discountable).reduce((s,c)=>s+c.qty*c.price,0);
+    const n=cart.filter(c=>!c.discountable).reduce((s,c)=>s+c.qty*c.price,0);
+    const discAmt=d*(1-m);const total=d*m+n;
+    const prev=includePrevBal?(parseFloat(document.getElementById('prevBalInput').value)||0):0;
+    document.getElementById('cartSub').textContent=fmt(d+n);
+    if(discAmt>0){document.getElementById('cartDiscRow').style.display='flex';document.getElementById('cartDiscPct').textContent=((1-m)*100).toFixed(2)+'%';document.getElementById('cartDiscAmt').textContent='-'+fmt(discAmt);}
+    else document.getElementById('cartDiscRow').style.display='none';
+    document.getElementById('cartTotal').textContent=fmt(total);
+    if(prev>0){document.getElementById('cartPrevRow').style.display='flex';document.getElementById('cartGrandRow').style.display='flex';document.getElementById('cartPrevBal').textContent=fmt(prev);document.getElementById('cartGrand').textContent=fmt(total+prev);}
+    else{document.getElementById('cartPrevRow').style.display='none';document.getElementById('cartGrandRow').style.display='none';}
+}
+async function loadCustomers(){customers=await Sheets.getCustomers();}
+function openCustPicker(){document.getElementById('custPickerSearch').value='';filterCustPicker();document.getElementById('custPickerModal').classList.add('active');}
+function filterCustPicker(){
+    const q=document.getElementById('custPickerSearch').value.toLowerCase();
+    const f=customers.filter(c=>c.name.toLowerCase().includes(q)||c.code.toLowerCase().includes(q)).slice(0,30);
+    document.getElementById('custPickerList').innerHTML=f.map(c=>`<div class="list-item" onclick="selectCustomer('${c.code}','${c.name.replace(/'/g,"\\'")}',${c.balance})" style="padding:10px 12px;margin-bottom:4px;cursor:pointer;">
+        <div class="list-item-info"><div class="list-item-name">${c.name}</div><div class="list-item-sub">${c.code}</div></div>
+        <div class="list-item-right">${c.balance>0?'<div class="text-red text-sm">'+fmt(c.balance)+'</div>':'<div class="text-green text-sm">Clear</div>'}</div>
+    </div>`).join('');
+}
+function selectCustomer(code,name,balance){
+    selCustomer={code,name,balance};
+    document.getElementById('custDisplay').innerHTML='&#128101; <strong>'+name+'</strong>';
+    document.getElementById('custDisplay').style.color='var(--text)';
+    if(balance>0){
+        document.getElementById('custBalDisplay').style.display='block';
+        document.getElementById('custBalDisplay').textContent='Outstanding: '+fmt(balance);
+        document.getElementById('prevBalCard').style.display='block';
+        document.getElementById('prevBalInput').value=balance.toFixed(2);
+        includePrevBal=true;
+    }else{
+        document.getElementById('custBalDisplay').style.display='none';
+        document.getElementById('prevBalCard').style.display='none';
+        includePrevBal=false;
+    }
+    document.getElementById('custPickerModal').classList.remove('active');
+    renderCartTotals();
+}
+function editPrevBal(){
+    const input=document.getElementById('prevBalInput');const btn=document.getElementById('prevBalEditBtn');
+    if(input.readOnly){input.readOnly=false;input.style.border='1px solid var(--accent)';input.focus();input.select();btn.textContent='\u2713 Done';}
+    else{input.readOnly=true;input.style.border='';btn.innerHTML='&#9999;&#65039; Edit';renderCartTotals();}
+}
+function showAddCustomer(){document.getElementById('addCustModal').classList.add('active');}
+async function saveNewCustomer(){
+    const name=document.getElementById('newCustName').value.trim();
+    if(!name){showToast('Enter a name',true);return;}
+    const code='NEW-'+Date.now();
+    await Sheets.writeRows('customer_add',{code,name,route:document.getElementById('newCustRoute').value,balance:0});
+    customers.push({code,name,balance:0});
+    selectCustomer(code,name,0);
+    document.getElementById('addCustModal').classList.remove('active');
+    document.getElementById('newCustName').value='';
+    showToast('Customer added');
+}
+function getAmountDue(){const prev=includePrevBal?(parseFloat(document.getElementById('prevBalInput').value)||0):0;return getCartTotal()+prev;}
+function showPayment(){
+    document.getElementById('cartModal').classList.remove('active');
+    document.getElementById('payDue').textContent=fmt(getAmountDue());
+    setPayMethod('Cash');
+    ['payCash','payCheque','payGCash','payCredit','payChequeNum','payGCashRef','payNotes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    calcPay();
     document.getElementById('paymentModal').classList.add('active');
 }
-
-function closePayment() { document.getElementById('paymentModal').classList.remove('active'); }
-
-function setPayMethod(m) {
-    payMethod = m;
-    ['Cash','Cheque','GCash','Credit','Split'].forEach(x => {
-        const btn = document.getElementById('payMethod' + x);
-        if (btn) btn.className = 'btn btn-sm ' + (x === m ? 'btn-primary' : 'btn-outline');
-    });
-    document.getElementById('cashInput').classList.toggle('hidden', !['Cash','Split'].includes(m));
-    document.getElementById('chequeInput').classList.toggle('hidden', !['Cheque','Split'].includes(m));
-    document.getElementById('gcashInput').classList.toggle('hidden', !['GCash','Split'].includes(m));
-    document.getElementById('creditInput').classList.toggle('hidden', !['Credit','Split'].includes(m));
-    const creditEl = document.getElementById('payCredit');
-    const creditAutoLabel = document.getElementById('creditAutoLabel');
-    creditEl.readOnly = m === 'Split';
-    creditEl.style.opacity = m === 'Split' ? '0.7' : '1';
-    creditAutoLabel.style.display = m === 'Split' ? 'inline' : 'none';
-    const due = getAmountDue();
-    if (m === 'Cheque') document.getElementById('payCheque').value = due.toFixed(2);
-    if (m === 'GCash') document.getElementById('payGCash').value = due.toFixed(2);
-    if (m === 'Credit') document.getElementById('payCredit').value = due.toFixed(2);
-    calcPayment();
+function setPayMethod(m){
+    payMethod=m;
+    ['Cash','Cheque','GCash','Credit','Split'].forEach(x=>{const b=document.getElementById('pm'+x);if(b)b.className='btn btn-sm '+(x===m?'btn-primary':'btn-outline');});
+    document.getElementById('cashInput').classList.toggle('hidden',!['Cash','Split'].includes(m));
+    document.getElementById('chequeInput').classList.toggle('hidden',!['Cheque','Split'].includes(m));
+    document.getElementById('gcashInput').classList.toggle('hidden',!['GCash','Split'].includes(m));
+    document.getElementById('creditInput').classList.toggle('hidden',!['Credit','Split'].includes(m));
+    const cred=document.getElementById('payCredit');
+    cred.readOnly=m==='Split';cred.style.opacity=m==='Split'?'0.7':'1';
+    document.getElementById('creditAutoLbl').style.display=m==='Split'?'inline':'none';
+    const due=getAmountDue();
+    if(m==='Cheque')document.getElementById('payCheque').value=due.toFixed(2);
+    if(m==='GCash')document.getElementById('payGCash').value=due.toFixed(2);
+    if(m==='Credit')document.getElementById('payCredit').value=due.toFixed(2);
+    calcPay();
 }
-
-function calcPayment() {
-    const due = getAmountDue();
-    const cash = parseFloat(document.getElementById('payCash').value) || 0;
-    const cheque = parseFloat(document.getElementById('payCheque').value) || 0;
-    const gcash = parseFloat(document.getElementById('payGCash').value) || 0;
-    const creditEl = document.getElementById('payCredit');
-    if (payMethod === 'Split') {
-        const leftover = due - cash - cheque - gcash;
-        creditEl.value = leftover > 0.01 ? leftover.toFixed(2) : '0.00';
-    }
-    const credit = parseFloat(creditEl.value) || 0;
-    const paid = cash + cheque + gcash;
-    const remaining = due - paid - credit;
-    const change = paid > (due - credit) ? paid - (due - credit) : 0;
-    document.getElementById('changeRow').style.display = change > 0 ? 'flex' : 'none';
-    document.getElementById('payChange').textContent = fmt(change);
-    document.getElementById('remainingRow').style.display = remaining > 0.01 ? 'flex' : 'none';
-    document.getElementById('payRemaining').textContent = fmt(remaining);
-    if (credit > 0 && selectedCustomer) {
-        document.getElementById('creditBalRow').style.display = 'flex';
-        const newBal = (selectedCustomer.balance || 0) + credit;
-        document.getElementById('payNewBal').textContent = fmt(newBal);
-    } else { document.getElementById('creditBalRow').style.display = 'none'; }
-    document.getElementById('completeBtn').disabled = remaining > 0.01;
+function calcPay(){
+    const due=getAmountDue();
+    const cash=parseFloat(document.getElementById('payCash').value)||0;
+    const cheque=parseFloat(document.getElementById('payCheque').value)||0;
+    const gcash=parseFloat(document.getElementById('payGCash').value)||0;
+    const credEl=document.getElementById('payCredit');
+    if(payMethod==='Split')credEl.value=Math.max(0,due-cash-cheque-gcash).toFixed(2);
+    const credit=parseFloat(credEl.value)||0;
+    const paid=cash+cheque+gcash;
+    const remaining=due-paid-credit;
+    const change=paid>(due-credit)?paid-(due-credit):0;
+    document.getElementById('changeRow').style.display=change>0?'flex':'none';
+    document.getElementById('payChange').textContent=fmt(change);
+    document.getElementById('remainingRow').style.display=remaining>0.01?'flex':'none';
+    document.getElementById('payRemaining').textContent=fmt(remaining);
+    if(credit>0&&selCustomer){document.getElementById('newBalRow').style.display='flex';document.getElementById('payNewBal').textContent=fmt((selCustomer.balance||0)+credit);}
+    else document.getElementById('newBalRow').style.display='none';
+    document.getElementById('completeBtn').disabled=remaining>0.01;
 }
-
-// === COMPLETE SALE ===
-async function completeSale() {
-    const mult = calcDiscountMultiplier();
-    const prevBal = includePrevBal ? (parseFloat(document.getElementById('prevBalInput').value) || 0) : 0;
-    const txId = 'TX-' + Date.now();
-
-    const payload = {
-        txId,
-        customerCode: selectedCustomer ? selectedCustomer.code : '',
-        customerName: selectedCustomer ? selectedCustomer.name : 'Walk-in',
-        items: cart.map(c => ({ sku: c.sku, name: c.name, qty: c.qty, price: c.price, discountable: c.discountable, commission: c.commission })),
-        discountPct: (1 - mult) * 100,
-        previousBalance: prevBal,
-        paymentMethod: payMethod,
-        cashAmount: parseFloat(document.getElementById('payCash').value) || 0,
-        chequeAmount: parseFloat(document.getElementById('payCheque').value) || 0,
-        chequeNumber: document.getElementById('payChequeNum').value,
-        gcashAmount: parseFloat(document.getElementById('payGCash').value) || 0,
-        gcashRef: document.getElementById('payGCashRef').value,
-        creditAmount: parseFloat(document.getElementById('payCredit').value) || 0,
-        notes: document.getElementById('payNotes').value,
-        remittanceNo: 1,
-        total: getAmountDue(),
+async function completeSale(){
+    const mult=discMultiplier();
+    const prevBal=includePrevBal?(parseFloat(document.getElementById('prevBalInput').value)||0):0;
+    const payload={
+        txId:'TX-'+Date.now(),
+        customerCode:selCustomer?selCustomer.code:'',customerName:selCustomer?selCustomer.name:'Walk-in',
+        items:cart.map(c=>({sku:c.sku,name:c.name,qty:c.qty,price:c.price,discountable:c.discountable,commission:c.commission})),
+        discountPct:(1-mult)*100,previousBalance:prevBal,paymentMethod:payMethod,
+        cashAmount:parseFloat(document.getElementById('payCash').value)||0,
+        chequeAmount:parseFloat(document.getElementById('payCheque').value)||0,
+        chequeNumber:document.getElementById('payChequeNum').value,
+        gcashAmount:parseFloat(document.getElementById('payGCash').value)||0,
+        gcashRef:document.getElementById('payGCashRef').value,
+        creditAmount:parseFloat(document.getElementById('payCredit').value)||0,
+        notes:document.getElementById('payNotes').value,remittanceNo:1,total:getAmountDue(),
     };
-
-    document.getElementById('completeBtn').disabled = true;
-    document.getElementById('completeBtn').textContent = '\u23f3 Processing...';
-
-    const result = await Sheets.postTransaction(payload);
-
-    if (result.success || result.offline) {
-        showToast(result.offline ? '\u{1f4f1} Sale saved offline' : 'Sale completed! ' + txId);
-        closePayment();
+    const btn=document.getElementById('completeBtn');btn.disabled=true;btn.textContent='\u23f3 Processing...';
+    const result=await Sheets.postTransaction(payload);
+    if(result.success||result.offline){
+        showToast(result.offline?'\u{1f4f1} Saved offline':'\u2705 Sale done! '+payload.txId);
+        document.getElementById('paymentModal').classList.remove('active');
         showLocalReceipt(payload);
-        cart = []; discounts = [false, false, false]; includePrevBal = false;
-        clearCustomer(); renderCart(); updateTotals();
-        for (let i = 0; i < 3; i++) {
-            document.getElementById('disc' + i).classList.remove('active');
-            document.getElementById('disc' + i + 'Check').textContent = '';
-        }
-        Cache.clear('customers');
-        loadCustomers();
-        await loadAllItems();
-    } else {
-        showToast('Error: ' + (result.error || 'Unknown'), true);
-    }
-    document.getElementById('completeBtn').disabled = false;
-    document.getElementById('completeBtn').textContent = '\u2705 Complete';
+        cart=[];discounts=[false,false,false];includePrevBal=false;selCustomer=null;
+        document.getElementById('custDisplay').innerHTML='&#128101; Walk-in';
+        document.getElementById('custDisplay').style.color='var(--text2)';
+        document.getElementById('custBalDisplay').style.display='none';
+        document.getElementById('prevBalCard').style.display='none';
+        ['dp0','dp1','dp2'].forEach(id=>document.getElementById(id).classList.remove('active'));
+        updateFloatBtn();renderGrid();Cache.clear('customers');loadCustomers();await loadItems();
+    }else{showToast('Error: '+(result.error||'unknown'),true);}
+    btn.disabled=false;btn.textContent='\u2705 Complete';
 }
-
-function showLocalReceipt(p) {
-    const mult = 1 - (p.discountPct / 100);
-    const discSub = p.items.filter(i => i.discountable).reduce((s, i) => s + i.qty * i.price, 0);
-    const nonDiscSub = p.items.filter(i => !i.discountable).reduce((s, i) => s + i.qty * i.price, 0);
-    const discAmt = discSub * (p.discountPct / 100);
-    const total = discSub + nonDiscSub - discAmt;
-
-    let html = `<div class="receipt" id="receiptPrint">
-        <div class="receipt-header"><strong>Samit Agent POS</strong><br>${CONFIG.AGENT_NAME}<br><br>Ref: ${p.txId}<br>${Sheets.now()}</div>`;
-    if (p.customerName !== 'Walk-in') html += `Customer: ${p.customerName}<br>`;
-    html += `<div class="receipt-divider"></div>`;
-    p.items.forEach(i => {
-        const lineTotal = i.qty * i.price * (i.discountable ? mult : 1);
-        html += `<div>${i.name}</div><div class="receipt-line"><span>&nbsp;&nbsp;${i.qty} \u00d7 ${fmtN(i.price)}</span><span>${fmtN(lineTotal)}</span></div>`;
-    });
-    html += `<div class="receipt-divider"></div>
-        <div class="receipt-line"><span>Subtotal</span><span>${fmtN(discSub + nonDiscSub)}</span></div>`;
-    if (discAmt > 0) html += `<div class="receipt-line"><span>Discount (${p.discountPct.toFixed(2)}%)</span><span>-${fmtN(discAmt)}</span></div>`;
-    html += `<div class="receipt-line receipt-total"><span>Total</span><span>${fmtN(total)}</span></div>`;
-    if (p.previousBalance > 0) {
-        html += `<div class="receipt-line"><span>Previous Balance</span><span>${fmtN(p.previousBalance)}</span></div>`;
-        html += `<div class="receipt-line receipt-total"><span>Grand Total</span><span>${fmtN(p.total)}</span></div>`;
-    }
-    html += `<div class="receipt-divider"></div>`;
-    if (p.cashAmount > 0) html += `<div class="receipt-line"><span>Cash</span><span>${fmtN(p.cashAmount)}</span></div>`;
-    if (p.chequeAmount > 0) html += `<div class="receipt-line"><span>Cheque ${p.chequeNumber}</span><span>${fmtN(p.chequeAmount)}</span></div>`;
-    if (p.gcashAmount > 0) html += `<div class="receipt-line"><span>GCash ${p.gcashRef}</span><span>${fmtN(p.gcashAmount)}</span></div>`;
-    if (p.creditAmount > 0) html += `<div class="receipt-line"><span>Credit</span><span>${fmtN(p.creditAmount)}</span></div>`;
-    if (p.notes) html += `<br>Notes: ${p.notes}`;
-    html += `<div class="receipt-divider"></div><div style="text-align:center;">Thank you!</div></div>`;
-    document.getElementById('receiptContent').innerHTML = html;
+function showLocalReceipt(p){
+    const mult=1-(p.discountPct/100);
+    const discSub=p.items.filter(i=>i.discountable).reduce((s,i)=>s+i.qty*i.price,0);
+    const nonDisc=p.items.filter(i=>!i.discountable).reduce((s,i)=>s+i.qty*i.price,0);
+    const discAmt=discSub*(p.discountPct/100);const total=discSub+nonDisc-discAmt;
+    let html=`<div class="receipt" id="receiptPrint"><div class="receipt-header"><strong>Samit Agent POS</strong><br>${CONFIG.AGENT_NAME}<br><br>Ref: ${p.txId}<br>${Sheets.now()}</div>`;
+    if(p.customerName!=='Walk-in')html+=`Customer: ${p.customerName}<br>`;
+    html+=`<div class="receipt-divider"></div>`;
+    p.items.forEach(i=>{const lt=i.qty*i.price*(i.discountable?mult:1);html+=`<div>${i.name}</div><div class="receipt-line"><span>&nbsp;&nbsp;${i.qty} \u00d7 ${fmtN(i.price)}</span><span>${fmtN(lt)}</span></div>`;});
+    html+=`<div class="receipt-divider"></div><div class="receipt-line"><span>Subtotal</span><span>${fmtN(discSub+nonDisc)}</span></div>`;
+    if(discAmt>0)html+=`<div class="receipt-line"><span>Discount (${p.discountPct.toFixed(2)}%)</span><span>-${fmtN(discAmt)}</span></div>`;
+    html+=`<div class="receipt-line receipt-total"><span>Total</span><span>${fmtN(total)}</span></div>`;
+    if(p.previousBalance>0){html+=`<div class="receipt-line"><span>Prev Balance</span><span>${fmtN(p.previousBalance)}</span></div>`;html+=`<div class="receipt-line receipt-total"><span>Grand Total</span><span>${fmtN(p.total)}</span></div>`;}
+    html+=`<div class="receipt-divider"></div>`;
+    if(p.cashAmount>0)html+=`<div class="receipt-line"><span>Cash</span><span>${fmtN(p.cashAmount)}</span></div>`;
+    if(p.chequeAmount>0)html+=`<div class="receipt-line"><span>Cheque ${p.chequeNumber}</span><span>${fmtN(p.chequeAmount)}</span></div>`;
+    if(p.gcashAmount>0)html+=`<div class="receipt-line"><span>GCash ${p.gcashRef}</span><span>${fmtN(p.gcashAmount)}</span></div>`;
+    if(p.creditAmount>0)html+=`<div class="receipt-line"><span>Credit</span><span>${fmtN(p.creditAmount)}</span></div>`;
+    if(p.notes)html+=`<br>Notes: ${p.notes}`;
+    html+=`<div class="receipt-divider"></div><div style="text-align:center;">Thank you!</div></div>`;
+    document.getElementById('receiptContent').innerHTML=html;
+    document.getElementById('receiptPhotoBtn').disabled=false;
+    document.getElementById('receiptPhotoBtn').innerHTML='&#128247; Take Photo of Receipt';
     document.getElementById('receiptModal').classList.add('active');
-    document.getElementById('receiptPhotoBtn').disabled = false;
-    document.getElementById('receiptPhotoBtn').innerHTML = '&#128247; Take Photo of Receipt';
 }
-
-function fmtN(n) { return (n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-
-async function shareReceipt() {
-    const text = document.getElementById('receiptPrint').innerText;
-    if (navigator.share) { try { await navigator.share({ title: 'Receipt', text }); return; } catch(e) {} }
-    try { await navigator.clipboard.writeText(text); showToast('\u{1f4cb} Copied to clipboard!'); }
-    catch(e) { showToast('Could not copy', true); }
+function fmtN(n){return(n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});}
+async function shareReceipt(){
+    const text=document.getElementById('receiptPrint').innerText;
+    if(navigator.share){try{await navigator.share({title:'Receipt',text});return;}catch(e){}}
+    try{await navigator.clipboard.writeText(text);showToast('&#128203; Copied!');}catch(e){}
 }
-
-async function showHistory() {
-    const data = await Sheets.getTodayTransactions();
-    const el = document.getElementById('historyList');
-    if (!data.length) {
-        el.innerHTML = '<div class="empty-state"><div class="icon">&#128203;</div><p>No transactions today</p></div>';
-    } else {
-        el.innerHTML = data.map(t => `
-            <div class="list-item" style="margin-bottom:4px;">
-                <div class="list-item-info">
-                    <div class="list-item-name">${t.txId} \u2014 ${t.customerName}</div>
-                    <div class="list-item-sub">${t.timestamp} \u2022 ${t.method}</div>
-                </div>
-                <div class="list-item-right"><div class="list-item-price">${fmt(t.total)}</div></div>
-            </div>`).join('');
-    }
+async function showHistory(){
+    const data=await Sheets.getTodayTransactions();
+    document.getElementById('historyList').innerHTML=!data.length
+        ?'<div class="empty-state"><div class="icon">&#128203;</div><p>No sales today</p></div>'
+        :data.map(t=>`<div class="list-item" style="margin-bottom:4px;"><div class="list-item-info"><div class="list-item-name">${t.txId} \u2014 ${t.customerName}</div><div class="list-item-sub">${t.timestamp} \u2022 ${t.method}</div></div><div class="list-item-right"><div class="list-item-price">${fmt(t.total)}</div></div></div>`).join('');
     document.getElementById('historyModal').classList.add('active');
 }
-
-// ── PHOTO CAPTURE ─────────────────────────────────────────────
-async function capturePhoto(label, filename) {
-    return new Promise((resolve) => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.capture = 'environment';
-        input.onchange = async (e) => {
-            const file = e.target.files[0];
-            if (!file) { resolve(null); return; }
-            const reader = new FileReader();
-            reader.onload = async (ev) => {
-                const base64 = ev.target.result.split(',')[1];
-                showToast('\u23f3 Uploading photo...');
-                try {
-                    const res = await fetch(CONFIG.PROXY_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action: 'photo_upload', imageData: base64, filename, label })
-                    });
-                    const data = await res.json();
-                    if (data.success) {
-                        showToast('\u2713 Photo saved to Drive!');
-                        resolve(data);
-                    } else {
-                        showToast('Upload failed: ' + (data.error || ''), true);
-                        resolve(null);
-                    }
-                } catch(err) {
-                    showToast('Upload error: ' + err.message, true);
-                    resolve(null);
-                }
-            };
-            reader.readAsDataURL(file);
-        };
-        input.click();
+async function capturePhoto(label,filename){
+    return new Promise(resolve=>{
+        const input=document.createElement('input');input.type='file';input.accept='image/*';input.capture='environment';
+        input.onchange=async e=>{
+            const file=e.target.files[0];if(!file){resolve(null);return;}
+            const reader=new FileReader();
+            reader.onload=async ev=>{
+                const base64=ev.target.result.split(',')[1];showToast('\u23f3 Uploading...');
+                try{
+                    const res=await fetch(CONFIG.PROXY_URL||CONFIG.APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'photo_upload',imageData:base64,filename,label})});
+                    const data=await res.json();
+                    if(data.success){showToast('\u2713 Photo saved!');resolve(data);}
+                    else{showToast('Upload failed',true);resolve(null);}
+                }catch(err){showToast('Upload error',true);resolve(null);}
+            };reader.readAsDataURL(file);
+        };input.click();
     });
 }
-
-async function takeReceiptPhoto() {
-    const btn = document.getElementById('receiptPhotoBtn');
-    if (btn) { btn.disabled = true; btn.textContent = '\u23f3 Opening camera...'; }
-    const today = new Date().toISOString().slice(0, 10);
-    const custName = (selectedCustomer ? selectedCustomer.name : 'WalkIn').replace(/\s+/g, '_');
-    await capturePhoto('Sale Receipt', 'SALE_' + CONFIG.AGENT_NAME + '_' + custName + '_' + today + '.jpg');
-    if (btn) { btn.disabled = false; btn.innerHTML = '&#128247; Take Photo of Receipt'; }
+async function takeReceiptPhoto(){
+    const btn=document.getElementById('receiptPhotoBtn');btn.disabled=true;btn.textContent='\u23f3 Opening camera...';
+    const today=new Date().toISOString().slice(0,10);
+    const cust=selCustomer?selCustomer.name.replace(/\s+/g,'_'):'WalkIn';
+    await capturePhoto('Sale Receipt','SALE_'+CONFIG.AGENT_NAME+'_'+cust+'_'+today+'.jpg');
+    btn.disabled=false;btn.innerHTML='&#128247; Take Photo of Receipt';
 }
-
-// Close dropdowns on outside tap
-document.addEventListener('click', e => {
-    if (!e.target.closest('#customerList') && !e.target.closest('#customerSearch')) document.getElementById('customerList').classList.add('hidden');
-    if (!e.target.closest('#itemResults') && !e.target.closest('#itemSearch')) document.getElementById('itemResults').classList.add('hidden');
-});
-
-// === INIT ===
-loadCustomers();
-loadAllItems();
-renderCart();
-updateTotals();
+async function loadItems(){
+    const items=await Sheets.getLoadedItems();allItems=items||[];buildCategoryTabs();renderGrid();
+}
+loadCustomers();loadItems();
 </script>
 </body>
 </html>

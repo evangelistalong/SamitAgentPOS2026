@@ -4,36 +4,62 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#1a5c2e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#7c3900">
+    <link rel="icon" href="data:,">
     <title>Truck Load</title>
     <link rel="stylesheet" href="base.css">
     <style>
-        .load-item {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 10px 12px; margin-bottom: 4px;
-            background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border);
+        /* ── LOAD THEME: orange/amber overrides ── */
+        :root{
+            --load-accent: #f97316;
+            --load-accent2: #ea580c;
+            --load-bg: #1c0f00;
+            --load-bg2: #2a1600;
+            --load-bg3: #3a1f00;
+            --load-surface: rgba(249,115,22,0.07);
+            --load-border: rgba(249,115,22,0.25);
         }
-        .load-item.verified { border-left: 3px solid var(--green); }
-        .load-item .item-info { flex: 1; min-width: 0; }
-        .load-item .item-name { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .load-item .item-sub { font-size: 0.7rem; color: var(--text2); }
-        .section-label { font-size: 0.75rem; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; padding-left: 4px; }
-        .photo-btn {
-            display: inline-flex; align-items: center; gap: 6px;
-            padding: 6px 12px; border-radius: 8px; font-size: 0.75rem;
-            font-weight: 600; cursor: pointer; border: 1px solid var(--border);
-            background: rgba(96,165,250,0.1); color: var(--blue);
-        }
-        .photo-btn:active { background: rgba(96,165,250,0.25); }
-        .version-bar {
-            text-align: center; font-size: 0.68rem; color: var(--text2);
-            padding: 4px 0 2px; letter-spacing: 0.03em;
-        }
-        .footer-bar {
-            text-align: center; font-size: 0.65rem; color: var(--text2);
-            padding: 12px 0 20px; opacity: 0.5;
-        }
+        body{background:var(--load-bg);}
+        .topbar{background:var(--load-bg2);border-bottom:1px solid var(--load-border);}
+        .content{background:var(--load-bg);}
+        /* Override accent for this page */
+        .cat-tab.active{background:var(--load-accent);color:#000;border-color:var(--load-accent);}
+        .item-card.in-cart{border-color:var(--load-accent);background:rgba(249,115,22,0.12);}
+        .item-card .ic-price{color:var(--load-accent);}
+        .item-card .ic-badge{background:var(--load-accent);color:#000;}
+        .float-load{background:var(--load-accent);color:#000;}
+        .load-count{background:#000;color:var(--load-accent);}
+        .ci-total{color:var(--load-accent);}
+        .btn-load-primary{background:var(--load-accent);color:#000;border:none;border-radius:var(--radius);padding:10px 20px;font-weight:700;font-size:0.9rem;cursor:pointer;}
+        .btn-load-primary:active{background:var(--load-accent2);}
+        /* shared layout */
+        .cat-tabs{display:flex;gap:6px;overflow-x:auto;padding:0 0 8px;scrollbar-width:none;margin-bottom:8px;}
+        .cat-tabs::-webkit-scrollbar{display:none;}
+        .cat-tab{flex-shrink:0;padding:5px 14px;border-radius:20px;font-size:0.75rem;font-weight:600;cursor:pointer;border:1px solid var(--load-border);background:var(--load-surface);color:var(--text2);white-space:nowrap;}
+        .item-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding-bottom:110px;}
+        .item-card{background:var(--load-surface);border:1px solid var(--load-border);border-radius:var(--radius);padding:10px 8px;display:flex;flex-direction:column;align-items:center;text-align:center;cursor:pointer;position:relative;transition:background 0.15s;user-select:none;}
+        .item-card:active{background:var(--load-bg3);}
+        .item-card.already-loaded{opacity:0.5;cursor:not-allowed;}
+        .item-card .ic-name{font-size:0.72rem;font-weight:600;line-height:1.3;margin-bottom:4px;min-height:2.6em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+        .item-card .ic-price{font-size:0.8rem;font-weight:700;}
+        .item-card .ic-badge{position:absolute;top:4px;right:4px;border-radius:50%;width:18px;height:18px;font-size:0.6rem;font-weight:700;display:flex;align-items:center;justify-content:center;}
+        .float-load{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);border:none;border-radius:24px;padding:12px 28px;font-size:0.9rem;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.5);display:flex;align-items:center;gap:10px;z-index:100;}
+        .float-load:active{transform:translateX(-50%) scale(0.96);}
+        .load-count{border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;}
+        .load-item{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--load-border);}
+        .load-item:last-child{border-bottom:none;}
+        .li-info{flex:1;min-width:0;}
+        .li-name{font-size:0.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .li-sub{font-size:0.7rem;color:var(--text2);}
+        .li-total{font-size:0.85rem;font-weight:700;min-width:60px;text-align:right;}
+        .photo-btn{display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 14px;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;border:1px solid var(--load-border);background:rgba(96,165,250,0.1);color:var(--blue);width:100%;margin-top:8px;}
+        .version-bar{text-align:center;font-size:0.68rem;color:var(--text2);padding:4px 0 2px;}
+        .footer-bar{text-align:center;font-size:0.65rem;color:var(--text2);padding:12px 0 20px;opacity:0.5;}
+        /* card overrides for load theme */
+        .card{background:var(--load-surface);border-color:var(--load-border);}
+        .modal{background:#1c1209;}
+        .input-field{background:var(--load-bg2);border-color:var(--load-border);}
     </style>
 </head>
 <body>
@@ -43,64 +69,70 @@
     <h1>&#128230; Truck Load</h1>
     <span class="topbar-action"></span>
 </div>
-
-<div class="content">
-    <!-- Summary Bar -->
-    <div class="card mb-3" style="padding: 10px 16px;">
+<div class="content" style="padding-bottom:0;">
+    <!-- Summary -->
+    <div class="card mb-3" style="padding:10px 16px;">
         <div class="flex-between">
-            <div><span class="fw-bold text-accent" id="totalItems">0</span> <span class="text-muted text-sm">items</span></div>
+            <div><span class="fw-bold" style="color:var(--load-accent)" id="totalItems">0</span> <span class="text-muted text-sm">items</span></div>
             <div><span class="fw-bold" id="totalQty">0</span> <span class="text-muted text-sm">total qty</span></div>
-            <div><span class="fw-bold text-green" id="totalValue">&#8369;0</span> <span class="text-muted text-sm">value</span></div>
+            <div><span class="fw-bold" style="color:var(--load-accent)" id="totalValue">&#8369;0</span> <span class="text-muted text-sm">value</span></div>
         </div>
     </div>
-
-    <!-- Add Item -->
-    <div class="section-label">&#10133; Add Items</div>
-    <div class="search-bar mb-2">
-        <input type="text" class="input-field" id="itemSearch" placeholder="Tap to browse or type to search..." oninput="searchItems()" onfocus="showItemDropdown()" autocomplete="off">
+    <div style="margin-bottom:8px;">
+        <input type="text" class="input-field" id="itemSearch" placeholder="&#128269; Search items to load..." oninput="filterGrid()" autocomplete="off" style="font-size:0.85rem;">
     </div>
-    <div id="searchResults" class="search-dropdown hidden"></div>
-
-    <!-- Loaded Items -->
-    <div class="flex-between mb-2" style="margin-top:12px;">
-        <div class="section-label" style="margin:0;">&#x1f69b; Loaded Items</div>
-        <div style="display:flex;gap:8px;align-items:center;">
-            <button class="photo-btn" id="loadPhotoBtn" onclick="takeLoadPhoto()" style="display:none;">&#128247; Photo</button>
-            <button class="btn btn-success" id="submitLoad" onclick="submitForChecking()" style="display:none; padding:6px 14px; font-size:0.75rem;">&#x2705; Submit for Checking</button>
-        </div>
+    <div class="cat-tabs" id="catTabs"></div>
+    <div class="item-grid" id="itemGrid">
+        <div class="text-center text-muted" style="grid-column:span 3;padding:40px 0;"><div style="font-size:2rem;">&#8987;</div><div>Loading catalog...</div></div>
     </div>
-    <div id="loadList">
-        <div class="text-center text-muted" style="padding:30px 12px;">
-            <div style="font-size:2rem;margin-bottom:8px;">&#128230;</div>
-            <div>No items loaded yet</div>
-            <div class="text-sm" style="margin-top:4px;">Search above to start adding items</div>
-        </div>
-    </div>
-
     <div class="footer-bar" id="footerBar">Created by Paul Evangelista</div>
 </div>
 
-<!-- Add Item Qty Modal -->
-<div class="modal-overlay" id="addQtyModal">
+<button class="float-load" id="floatLoadBtn" style="display:none;" onclick="openLoadCart()">
+    <span>&#128230; View Load</span>
+    <span class="load-count" id="loadCount">0</span>
+    <span id="loadTotal" style="font-size:0.85rem;">&#8369;0</span>
+</button>
+
+<!-- Qty Modal -->
+<div class="modal-overlay" id="qtyModal">
     <div class="modal">
         <div class="modal-handle"></div>
-        <div class="modal-title">&#128230; Add to Load</div>
-        <div class="fw-bold mb-1" id="addQtyItemName" style="font-size:0.95rem;"></div>
-        <div class="text-sm text-muted mb-3" id="addQtyItemSub"></div>
-        <div class="mb-3">
-            <label class="text-sm text-muted">Quantity</label>
-            <div class="qty-control" style="justify-content:center;display:inline-flex;width:100%;">
-                <button class="qty-btn" onclick="addQtyAdjust(-10)" style="width:60px;height:50px;font-size:1.1rem;">&#8722;10</button>
-                <button class="qty-btn" onclick="addQtyAdjust(-1)" style="width:50px;height:50px;font-size:1.3rem;">&#8722;</button>
-                <input type="number" class="qty-value" id="addQtyInput" value="1" min="1" style="width:80px;height:50px;font-size:1.3rem;text-align:center;" onclick="this.select()">
-                <button class="qty-btn" onclick="addQtyAdjust(1)" style="width:50px;height:50px;font-size:1.3rem;">+</button>
-                <button class="qty-btn" onclick="addQtyAdjust(10)" style="width:60px;height:50px;font-size:1.1rem;">+10</button>
-            </div>
+        <div class="modal-title" id="qtyTitle" style="font-size:0.9rem;"></div>
+        <div class="text-muted text-sm mb-3" id="qtyPrice"></div>
+        <div class="qty-control" style="justify-content:center;display:flex;width:100%;margin-bottom:12px;">
+            <button class="qty-btn" onclick="qtyAdj(-10)" style="width:54px;height:54px;font-size:1rem;">&#8722;10</button>
+            <button class="qty-btn" onclick="qtyAdj(-1)"  style="width:46px;height:54px;font-size:1.3rem;">&#8722;</button>
+            <input type="number" class="qty-value" id="qtyInput" value="1" min="1" style="width:80px;height:54px;font-size:1.4rem;text-align:center;" onclick="this.select()">
+            <button class="qty-btn" onclick="qtyAdj(1)"   style="width:46px;height:54px;font-size:1.3rem;">+</button>
+            <button class="qty-btn" onclick="qtyAdj(10)"  style="width:54px;height:54px;font-size:1rem;">+10</button>
         </div>
         <div class="grid-2">
-            <button class="btn btn-secondary" onclick="document.getElementById('addQtyModal').classList.remove('active')">Cancel</button>
-            <button class="btn btn-primary" onclick="confirmAddLoad()">&#x2705; Add to Load</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('qtyModal').classList.remove('active');pendingItem=null;">Cancel</button>
+            <button class="btn-load-primary" onclick="confirmQty()">&#10133; Add to Load</button>
         </div>
+    </div>
+</div>
+
+<!-- Load Cart Modal -->
+<div class="modal-overlay" id="loadCartModal">
+    <div class="modal" style="max-height:92vh;display:flex;flex-direction:column;">
+        <div class="modal-handle"></div>
+        <div class="modal-title" style="margin-bottom:4px;color:var(--load-accent);">&#128230; Load List</div>
+        <!-- Summary -->
+        <div class="card mb-3" style="padding:10px 14px;">
+            <div class="flex-between">
+                <div><span class="fw-bold" style="color:var(--load-accent)" id="lcItems">0</span> <span class="text-muted text-sm">items</span></div>
+                <div><span class="fw-bold" id="lcQty">0</span> <span class="text-muted text-sm">total qty</span></div>
+                <div><span class="fw-bold" style="color:var(--load-accent)" id="lcValue">&#8369;0</span></div>
+            </div>
+        </div>
+        <div id="loadList" style="flex:1;overflow-y:auto;min-height:0;"></div>
+        <div class="grid-2 mt-3">
+            <button class="btn btn-secondary" onclick="document.getElementById('loadCartModal').classList.remove('active')">&#8592; Add More</button>
+            <button class="btn-load-primary" id="submitBtn" onclick="submitForChecking()">&#x2705; Submit for Checking</button>
+        </div>
+        <button class="photo-btn" id="loadPhotoBtn" onclick="takeLoadPhoto()" style="margin-top:8px;">&#128247; Take Photo of Load Sheet</button>
     </div>
 </div>
 
@@ -109,199 +141,155 @@
 <script src="base.js"></script>
 <script src="version.js"></script>
 <script>
-// Show version
-document.addEventListener('DOMContentLoaded', () => {
-    if (typeof APP_VERSION !== 'undefined') {
-        document.getElementById('versionBar').textContent = 'v' + APP_VERSION;
-        document.getElementById('footerBar').textContent = 'Created by ' + APP_BUILT_BY + ' · v' + APP_VERSION;
+document.addEventListener('DOMContentLoaded',()=>{
+    if(typeof APP_VERSION!=='undefined'){
+        document.getElementById('versionBar').textContent='v'+APP_VERSION;
+        document.getElementById('footerBar').textContent='Created by '+APP_BUILT_BY+' \u00b7 v'+APP_VERSION;
     }
 });
-
-let loadItems = [];
-let allItems = [];
-let searchTimeout;
-let loadedSKUs = new Set();
-let pendingAddItem = null;
-
-async function loadData() {
-    const result = await Sheets.getLoad();
-    loadItems = result || [];
-    loadedSKUs = new Set(loadItems.map(i => i.sku));
-    renderLoad();
+let loadCart=[],allItems=[],pendingItem=null,activeCategory='All',searchQ='',existingLoad=[];
+const CAT_MAP={'1':'Meats','2':'Specialty','3':'Seafood'};
+function getCategory(sku){const f=(sku||'').toString().charAt(0);return CAT_MAP[f]||'Other';}
+function buildCategoryTabs(){
+    const cats=['All',...new Set(allItems.map(i=>getCategory(i.sku)))];
+    document.getElementById('catTabs').innerHTML=cats.map(c=>`<div class="cat-tab ${c===activeCategory?'active':''}" onclick="setCategory('${c}')">${c}</div>`).join('');
 }
-
-async function loadAllItems() {
-    allItems = await Sheets.getAllItems();
-    if (!allItems.length) showToast('Could not load item catalog', true);
-}
-
-function renderLoad() {
-    const el = document.getElementById('loadList');
-    if (!loadItems.length) {
-        el.innerHTML = `<div class="text-center text-muted" style="padding:30px 12px;">
-            <div style="font-size:2rem;margin-bottom:8px;">&#128230;</div>
-            <div>No items loaded yet</div>
-            <div class="text-sm" style="margin-top:4px;">Search above to start adding items</div>
-        </div>`;
-        document.getElementById('submitLoad').style.display = 'none';
-        document.getElementById('loadPhotoBtn').style.display = 'none';
-    } else {
-        el.innerHTML = loadItems.map(item => `
-            <div class="load-item ${item.verified ? 'verified' : ''}">
-                <div class="item-info">
-                    <div class="item-name">${item.name}</div>
-                    <div class="item-sub">SKU: ${item.sku} • ${fmt(item.price)}${item.soldQty > 0 ? ' • <span style="color:var(--green)">Sold: ' + item.soldQty + '</span>' : ''}${item.verified ? ' • <span style="color:var(--green)">✓ Verified</span>' : ''}</div>
-                </div>
-                <div style="display:flex;align-items:center;gap:6px;">
-                    <span class="fw-bold" style="min-width:40px;text-align:center;font-size:0.95rem;">${item.loadQty}</span>
-                    <button onclick="removeLoad('${item.loadId}')" style="background:none;border:none;color:var(--red);font-size:1.1rem;cursor:pointer;padding:4px 2px;">✕</button>
-                </div>
-            </div>`).join('');
-        document.getElementById('submitLoad').style.display = 'inline-flex';
-        document.getElementById('loadPhotoBtn').style.display = 'inline-flex';
-    }
-    document.getElementById('totalItems').textContent = loadItems.length;
-    document.getElementById('totalQty').textContent = loadItems.reduce((s, i) => s + i.loadQty, 0);
-    document.getElementById('totalValue').textContent = fmt(loadItems.reduce((s, i) => s + (i.loadQty * i.price), 0));
-}
-
-function showItemDropdown() {
-    const q = document.getElementById('itemSearch').value.trim().toLowerCase();
-    let filtered = allItems;
-    if (q.length > 0) filtered = allItems.filter(i => i.name.toLowerCase().includes(q) || i.sku.toLowerCase().includes(q));
-    const el = document.getElementById('searchResults');
-    if (!filtered.length) {
-        el.innerHTML = '<div class="text-center text-muted" style="padding:12px;">No matching items</div>';
-        el.classList.remove('hidden');
-        return;
-    }
-    el.innerHTML = filtered.slice(0, 40).map(item => {
-        const isLoaded = loadedSKUs.has(item.sku);
-        return `
-        <div class="search-item" onclick='${isLoaded ? 'showToast("Already loaded",true)' : 'openAddModal(' + JSON.stringify(item).replace(/'/g,"&#39;") + ')'}'>
-            <div style="flex:1;min-width:0;">
-                <div style="font-size:0.85rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.name}</div>
-                <div style="font-size:0.7rem;color:var(--text2);">SKU: ${item.sku} • ${fmt(item.wholesale)}</div>
-            </div>
-            <div class="${isLoaded ? 'loaded-badge' : 'add-badge'}">${isLoaded ? '✓ Loaded' : '+ Add'}</div>
+function setCategory(cat){activeCategory=cat;buildCategoryTabs();renderGrid();}
+function renderGrid(){
+    const q=searchQ.toLowerCase();
+    let items=allItems;
+    if(activeCategory!=='All')items=items.filter(i=>getCategory(i.sku)===activeCategory);
+    if(q)items=items.filter(i=>i.name.toLowerCase().includes(q)||i.sku.includes(q));
+    const el=document.getElementById('itemGrid');
+    if(!items.length){el.innerHTML='<div class="text-center text-muted" style="grid-column:span 3;padding:30px 0;"><div style="font-size:2rem;">&#128269;</div><div>No items</div></div>';return;}
+    const loadedSkus=new Set([...existingLoad.map(i=>i.sku),...loadCart.map(i=>i.sku)]);
+    el.innerHTML=items.map(item=>{
+        const alreadyLoaded=loadedSkus.has(item.sku);
+        const inCart=loadCart.find(c=>c.sku===item.sku);
+        return`<div class="item-card ${alreadyLoaded&&!inCart?'already-loaded':''} ${inCart?'in-cart':''}"
+                onclick="${alreadyLoaded&&!inCart?'showToast(\'Already loaded\',true)':'promptQty(JSON.parse(this.dataset.item))'}">
+            ${inCart?'<span class="ic-badge">'+inCart.qty+'</span>':''}
+            <div class="ic-name">${item.name}</div>
+            <div class="ic-price">${fmt(item.wholesale||item.price)}</div>
+            ${alreadyLoaded&&!inCart?'<div style="font-size:0.6rem;color:var(--text2);">Loaded</div>':''}
+            <span style="display:none;" data-item="${JSON.stringify(item).replace(/"/g,'&quot;')}"></span>
         </div>`;
     }).join('');
-    if (filtered.length > 40) el.innerHTML += `<div class="text-center text-muted text-sm" style="padding:8px;">${filtered.length - 40} more — type to narrow</div>`;
-    el.classList.remove('hidden');
-}
-
-function searchItems() {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(showItemDropdown, 150);
-}
-
-function openAddModal(item) {
-    pendingAddItem = item;
-    document.getElementById('addQtyItemName').textContent = item.name;
-    document.getElementById('addQtyItemSub').textContent = 'SKU: ' + item.sku + ' • ' + fmt(item.wholesale);
-    document.getElementById('addQtyInput').value = 1;
-    document.getElementById('addQtyModal').classList.add('active');
-    setTimeout(() => document.getElementById('addQtyInput').select(), 200);
-}
-
-function addQtyAdjust(delta) {
-    const el = document.getElementById('addQtyInput');
-    let v = (parseInt(el.value) || 0) + delta;
-    if (v < 1) v = 1;
-    el.value = v;
-}
-
-async function confirmAddLoad() {
-    if (!pendingAddItem) return;
-    const qty = parseInt(document.getElementById('addQtyInput').value) || 1;
-    document.getElementById('addQtyModal').classList.remove('active');
-    document.getElementById('itemSearch').value = '';
-    document.getElementById('searchResults').classList.add('hidden');
-
-    const tempId = 'LOCAL-' + Date.now();
-    loadItems.push({ loadId: tempId, sku: pendingAddItem.sku, name: pendingAddItem.name, price: pendingAddItem.wholesale, loadQty: qty, soldQty: 0, returnQty: 0, verified: false });
-    loadedSKUs.add(pendingAddItem.sku);
-    renderLoad();
-    showToast('✓ ' + pendingAddItem.name + ' ×' + qty + ' added');
-
-    const result = await Sheets.addLoadItem(pendingAddItem.sku, pendingAddItem.name, pendingAddItem.wholesale, qty);
-    if (!result.success && !result.offline) {
-        loadItems = loadItems.filter(i => i.loadId !== tempId);
-        loadedSKUs.delete(pendingAddItem.sku);
-        renderLoad();
-        showToast('Error saving item', true);
-    }
-    pendingAddItem = null;
-    setTimeout(loadData, 2000);
-}
-
-async function removeLoad(loadId) {
-    loadItems = loadItems.filter(i => i.loadId !== loadId);
-    loadedSKUs = new Set(loadItems.map(i => i.sku));
-    renderLoad();
-    await Sheets.writeRows('load_remove', { loadId });
-}
-
-function submitForChecking() {
-    showToast('Load submitted for checking! ✅');
-    Sheets.writeRows('load_submit', { date: Sheets.today() });
-}
-
-// ── PHOTO CAPTURE ─────────────────────────────────────────────
-async function capturePhoto(label, filename) {
-    return new Promise((resolve) => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.capture = 'environment';
-        input.onchange = async (e) => {
-            const file = e.target.files[0];
-            if (!file) { resolve(null); return; }
-            const reader = new FileReader();
-            reader.onload = async (ev) => {
-                const base64 = ev.target.result.split(',')[1];
-                showToast('⏳ Uploading photo...');
-                try {
-                    const res = await fetch(CONFIG.PROXY_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action: 'photo_upload', imageData: base64, filename, label })
-                    });
-                    const data = await res.json();
-                    if (data.success) {
-                        showToast('✓ Photo saved to Drive!');
-                        resolve(data);
-                    } else {
-                        showToast('Upload failed: ' + (data.error || ''), true);
-                        resolve(null);
-                    }
-                } catch(err) {
-                    showToast('Upload error: ' + err.message, true);
-                    resolve(null);
-                }
-            };
-            reader.readAsDataURL(file);
-        };
-        input.click();
+    document.querySelectorAll('.item-card:not(.already-loaded)').forEach(card=>{
+        const span=card.querySelector('[data-item]');
+        if(span)card.dataset.item=span.getAttribute('data-item');
     });
 }
-
-async function takeLoadPhoto() {
-    const btn = document.getElementById('loadPhotoBtn');
-    if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
-    const today = new Date().toISOString().slice(0,10);
-    await capturePhoto('Truck Load Sheet', 'LOAD_' + CONFIG.AGENT_NAME + '_' + today + '.jpg');
-    if (btn) { btn.disabled = false; btn.innerHTML = '&#128247; Photo'; }
+function filterGrid(){searchQ=document.getElementById('itemSearch').value;renderGrid();}
+function promptQty(item){
+    pendingItem=item;
+    const existing=loadCart.find(c=>c.sku===item.sku);
+    document.getElementById('qtyTitle').textContent=item.name;
+    document.getElementById('qtyPrice').textContent=fmt(item.wholesale||item.price)+' per unit';
+    document.getElementById('qtyInput').value=existing?existing.qty:1;
+    document.getElementById('qtyModal').classList.add('active');
+    setTimeout(()=>document.getElementById('qtyInput').select(),200);
 }
-
-// Init
-loadData();
-loadAllItems();
-document.addEventListener('click', e => {
-    if (!e.target.closest('#searchResults') && !e.target.closest('#itemSearch')) {
-        document.getElementById('searchResults').classList.add('hidden');
+function qtyAdj(d){const el=document.getElementById('qtyInput');el.value=Math.max(1,(parseInt(el.value)||0)+d);}
+function confirmQty(){
+    if(!pendingItem)return;
+    const qty=parseInt(document.getElementById('qtyInput').value)||1;
+    const price=pendingItem.wholesale||pendingItem.price;
+    const existing=loadCart.find(c=>c.sku===pendingItem.sku);
+    if(existing){existing.qty=qty;}
+    else{loadCart.push({sku:pendingItem.sku,name:pendingItem.name,price,qty});}
+    document.getElementById('qtyModal').classList.remove('active');
+    pendingItem=null;
+    showToast(qty+'\u00d7 '+(existing?'updated':'added to load'));
+    updateFloatBtn();renderGrid();
+}
+function getLoadTotal(){return loadCart.reduce((s,c)=>s+c.qty*c.price,0);}
+function updateFloatBtn(){
+    const btn=document.getElementById('floatLoadBtn');
+    const qty=loadCart.reduce((s,c)=>s+c.qty,0);
+    if(!qty){btn.style.display='none';return;}
+    btn.style.display='flex';
+    document.getElementById('loadCount').textContent=qty;
+    document.getElementById('loadTotal').textContent=fmt(getLoadTotal());
+    document.getElementById('totalItems').textContent=loadCart.length+existingLoad.length;
+    document.getElementById('totalQty').textContent=loadCart.reduce((s,c)=>s+c.qty,0)+existingLoad.reduce((s,c)=>s+(c.loadQty||0),0);
+    document.getElementById('totalValue').textContent=fmt(getLoadTotal()+existingLoad.reduce((s,c)=>s+(c.loadQty||0)*c.price,0));
+}
+function openLoadCart(){
+    renderLoadList();
+    document.getElementById('loadCartModal').classList.add('active');
+}
+function renderLoadList(){
+    const all=[...existingLoad.map(i=>({...i,isExisting:true})),...loadCart.map(i=>({...i,isExisting:false}))];
+    document.getElementById('lcItems').textContent=all.length;
+    document.getElementById('lcQty').textContent=all.reduce((s,i)=>s+(i.loadQty||i.qty||0),0);
+    document.getElementById('lcValue').textContent=fmt(all.reduce((s,i)=>s+(i.loadQty||i.qty||0)*i.price,0));
+    if(!all.length){document.getElementById('loadList').innerHTML='<div class="text-center text-muted" style="padding:20px;">No items in load</div>';return;}
+    document.getElementById('loadList').innerHTML=all.map((item,i)=>`
+        <div class="load-item">
+            <div class="li-info">
+                <div class="li-name">${item.name}</div>
+                <div class="li-sub">SKU: ${item.sku} \u2022 ${fmt(item.price)}${item.isExisting?' \u2022 <span style="color:var(--load-accent);font-size:0.65rem;">Already loaded</span>':''}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+                <span class="fw-bold" style="min-width:36px;text-align:center;">${item.loadQty||item.qty}</span>
+                ${!item.isExisting?`<button onclick="removeFromLoad(${i-existingLoad.length})" style="background:none;border:none;color:var(--red);font-size:1.1rem;cursor:pointer;">\u2715</button>`:''}
+            </div>
+            <div class="li-total" style="color:var(--load-accent);">${fmt((item.loadQty||item.qty)*item.price)}</div>
+        </div>`).join('');
+}
+function removeFromLoad(i){loadCart.splice(i,1);renderLoadList();updateFloatBtn();renderGrid();}
+async function submitForChecking(){
+    if(!loadCart.length){showToast('Nothing new to submit',true);return;}
+    const btn=document.getElementById('submitBtn');btn.disabled=true;btn.textContent='\u23f3 Submitting...';
+    let ok=0;
+    for(const item of loadCart){
+        const result=await Sheets.addLoadItem(item.sku,item.name,item.price,item.qty);
+        if(result.success||result.offline)ok++;
     }
-});
+    if(ok===loadCart.length){
+        showToast('\u2705 Load submitted for checking!');
+        existingLoad=[...existingLoad,...loadCart.map(i=>({...i,loadQty:i.qty}))];
+        loadCart=[];
+        updateFloatBtn();renderGrid();renderLoadList();
+        document.getElementById('loadCartModal').classList.remove('active');
+    }else{showToast('Some items failed to save',true);}
+    btn.disabled=false;btn.textContent='\u2705 Submit for Checking';
+}
+async function capturePhoto(label,filename){
+    return new Promise(resolve=>{
+        const input=document.createElement('input');input.type='file';input.accept='image/*';input.capture='environment';
+        input.onchange=async e=>{
+            const file=e.target.files[0];if(!file){resolve(null);return;}
+            const reader=new FileReader();
+            reader.onload=async ev=>{
+                const base64=ev.target.result.split(',')[1];showToast('\u23f3 Uploading...');
+                try{
+                    const res=await fetch(CONFIG.PROXY_URL||CONFIG.APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'photo_upload',imageData:base64,filename,label})});
+                    const data=await res.json();
+                    if(data.success){showToast('\u2713 Photo saved to Drive!');resolve(data);}
+                    else{showToast('Upload failed',true);resolve(null);}
+                }catch(err){showToast('Upload error',true);resolve(null);}
+            };reader.readAsDataURL(file);
+        };input.click();
+    });
+}
+async function takeLoadPhoto(){
+    const btn=document.getElementById('loadPhotoBtn');btn.disabled=true;btn.textContent='\u23f3 Opening camera...';
+    const today=new Date().toISOString().slice(0,10);
+    await capturePhoto('Truck Load Sheet','LOAD_'+CONFIG.AGENT_NAME+'_'+today+'.jpg');
+    btn.disabled=false;btn.innerHTML='&#128247; Take Photo of Load Sheet';
+}
+async function init(){
+    const [items,load]=await Promise.all([Sheets.getAllItems(),Sheets.getLoad()]);
+    allItems=items||[];
+    existingLoad=load||[];
+    document.getElementById('totalItems').textContent=existingLoad.length;
+    document.getElementById('totalQty').textContent=existingLoad.reduce((s,i)=>s+(i.loadQty||0),0);
+    document.getElementById('totalValue').textContent=fmt(existingLoad.reduce((s,i)=>s+(i.loadQty||0)*i.price,0));
+    buildCategoryTabs();renderGrid();
+}
+init();
 </script>
 </body>
 </html>
