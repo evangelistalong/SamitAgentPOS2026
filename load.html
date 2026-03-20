@@ -285,10 +285,99 @@ async function takeLoadPhoto(){
     await capturePhoto('Truck Load Sheet','LOAD_'+CONFIG.AGENT_NAME+'_'+today+'.jpg');
     btn.disabled=false;btn.innerHTML='&#128247; Take Photo of Load Sheet';btn.textContent='';
 }
+// Smart sort: score = frequency * 2 + avg_qty (normalized)
+async function computeItemScores(apiKey, sheetId) {
+    try {
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Load?key=${apiKey}`;
+        const r = await fetch(url);
+        const data = await r.json();
+        const rows = data.values || [];
+        if (rows.length < 2) return {};
+        const h = rows[0].map(x => x.toLowerCase().trim());
+        const iSku = h.indexOf('sku');
+        const iQty = h.indexOf('loadqty');
+        if (iSku < 0 || iQty < 0) return {};
+        // Aggregate per SKU
+        const freq = {}, totalQty = {};
+        rows.slice(1).forEach(row => {
+            const sku = row[iSku] || '';
+            const qty = parseInt(row[iQty]) || 0;
+            if (!sku) return;
+            freq[sku] = (freq[sku] || 0) + 1;
+            totalQty[sku] = (totalQty[sku] || 0) + qty;
+        });
+        // Compute score
+        const maxFreq = Math.max(...Object.values(freq), 1);
+        const maxQty  = Math.max(...Object.values(totalQty), 1);
+        const scores = {};
+        Object.keys(freq).forEach(sku => {
+            scores[sku] = (freq[sku] / maxFreq) * 2 + (totalQty[sku] / maxQty);
+        });
+        return scores;
+    } catch(e) { return {}; }
+}
+
+
+// ── SMART SORT ────────────────────────────────────────────────
+let _sortMap=null,_sortExpiry=0;
+async function getSmartSortMap(){
+    const now=Date.now();
+    if(_sortMap&&now<_sortExpiry)return _sortMap;
+    try{
+        const url=`https://sheets.googleapis.com/v4/spreadsheets/1DDueHEUvbUeCcornosMg_Vxdq6cvTSVSyTypfUNXSTI/values/DailyLoadBackup?key=${CONFIG.SHEETS_API_KEY}`;
+        const res=await fetch(url);const data=await res.json();
+        const rows=data.values||[];
+        if(rows.length<2)return {};
+        const h=rows[0].map(x=>x.toLowerCase().trim());
+        const iSKU=h.indexOf('sku'),iLoad=h.indexOf('loadqty');
+        const skuData={};
+        rows.slice(1).forEach(row=>{
+            const sku=(row[iSKU]||'').toString().trim();
+            if(!sku)return;
+            const qty=parseFloat(row[iLoad])||0;
+            if(!skuData[sku]){skuData[sku]={count:0,totalQty:0};}
+            skuData[sku].count++;skuData[sku].totalQty+=qty;
+        });
+        _sortMap={};
+        Object.entries(skuData).forEach(([sku,d])=>{
+            _sortMap[sku]={freq:d.count,avgQty:d.totalQty/d.count,score:d.count*1000+(d.totalQty/d.count)};
+        });
+        _sortExpiry=now+30*60*1000;
+        return _sortMap;
+    }catch(e){return {};}
+}
+function sortItemsBySmart(items,sortMap){
+    return [...items].sort((a,b)=>{
+        const sa=sortMap[String(a.sku)]||{score:0};
+        const sb=sortMap[String(b.sku)]||{score:0};
+        if(sb.score!==sa.score)return sb.score-sa.score;
+        return (a.name||'').localeCompare(b.name||'');
+    });
+}
+
 async function init(){
-    const [items,load]=await Promise.all([Sheets.getAllItems(),Sheets.getLoad()]);
-    allItems=items||[];
-    existingLoad=load||[];
+    const [items, loadData, sortMap] = await Promise.all([
+        Sheets.getAllItems(),
+        Sheets.getLoad(),
+        getSmartSortMap()
+    ]);
+    allItems = sortItemsBySmart(items || [], sortMap);
+    existingLoad = loadData || [];
+
+    // Compute smart sort scores from load history
+    try {
+        const scores = await computeItemScores(
+            CONFIG.SHEETS_API_KEY,
+            CONFIG.SPREADSHEET_ID
+        );
+        if (Object.keys(scores).length > 0) {
+            allItems.sort((a, b) => {
+                const sA = scores[a.sku] || 0;
+                const sB = scores[b.sku] || 0;
+                return sB - sA; // highest score first
+            });
+        }
+    } catch(e) {}
     document.getElementById('totalItems').textContent=existingLoad.length;
     document.getElementById('totalQty').textContent=existingLoad.reduce((s,i)=>s+(i.loadQty||0),0);
     document.getElementById('totalValue').textContent=fmt(existingLoad.reduce((s,i)=>s+(i.loadQty||0)*i.price,0));
