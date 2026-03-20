@@ -1,33 +1,57 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#1a5c2e">
-    <title>Truck Load</title>
-    <link rel="stylesheet" href="base.css">
-    <style>
-        .load-item {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 10px 12px; margin-bottom: 4px;
-            background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border);
-        }
-        .load-item.verified { border-left: 3px solid var(--green); }
-        .load-item .item-info { flex: 1; min-width: 0; }
-        .load-item .item-name { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .load-item .item-sub { font-size: 0.7rem; color: var(--text2); }
-        .section-label { font-size: 0.75rem; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; padding-left: 4px; }
-    </style>
-</head>
-<body>
+{% extends 'base.html' %}
+{% block title %}Truck Load{% endblock %}
+{% block extra_css %}
+<style>
+    .load-item {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 10px 12px; margin-bottom: 4px;
+        background: var(--surface); border-radius: var(--radius);
+        border: 1px solid var(--border);
+    }
+    .load-item.verified { border-left: 3px solid var(--green); }
+    .load-item.unverified-topup { border-left: 3px solid var(--accent); }
+    .load-item .item-info { flex: 1; min-width: 0; }
+    .load-item .item-name { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .load-item .item-sub { font-size: 0.7rem; color: var(--text2); }
+    .search-dropdown {
+        max-height: 40vh; overflow-y: auto; margin-bottom: 8px;
+        border: 1px solid var(--border); border-radius: var(--radius);
+        background: var(--bg2);
+    }
+    .search-item {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 10px 12px; border-bottom: 1px solid var(--border); cursor: pointer;
+    }
+    .search-item:active { background: rgba(212,168,67,0.15); }
+    .search-item.already-loaded { opacity: 0.6; }
+    .search-item .add-badge {
+        background: var(--accent); color: #000; font-size: 0.7rem; font-weight: 700;
+        padding: 2px 8px; border-radius: 10px; white-space: nowrap;
+    }
+    .search-item .loaded-badge {
+        background: var(--green); color: #000; font-size: 0.7rem; font-weight: 700;
+        padding: 2px 8px; border-radius: 10px; white-space: nowrap;
+    }
+    .section-label {
+        font-size: 0.75rem; font-weight: 600; color: var(--text2); text-transform: uppercase;
+        letter-spacing: 0.5px; margin-bottom: 8px; padding-left: 4px;
+    }
+    .lock-banner {
+        background: linear-gradient(135deg, #1a5c2e, #2d7a3f);
+        padding: 10px 14px; border-radius: var(--radius); margin-bottom: 12px;
+        display: flex; align-items: center; gap: 10px;
+    }
+    .lock-banner .icon { font-size: 1.3rem; }
+    .lock-banner .info { flex: 1; font-size: 0.8rem; }
+    .lock-banner .info strong { display: block; font-size: 0.85rem; }
+</style>
+{% endblock %}
+{% block body %}
 <div class="topbar">
-    <a href="index.html" class="topbar-back">‹</a>
+    <a href="/" class="topbar-back">‹</a>
     <h1>📦 Truck Load</h1>
-    <span class="topbar-action"></span>
+    <span class="topbar-action text-sm"><a href="/print/load" target="_blank" style="text-decoration:none;background:rgba(255,255,255,0.15);padding:4px 10px;border-radius:8px;color:#fff;font-size:0.85rem;">&#9113; Print</a></span>
 </div>
-
 <div class="content">
     <!-- Summary Bar -->
     <div class="card mb-3" style="padding: 10px 16px;">
@@ -38,23 +62,72 @@
         </div>
     </div>
 
-    <!-- Add Item -->
-    <div class="section-label">➕ Add Items</div>
-    <div class="search-bar mb-2">
-        <input type="text" class="input-field" id="itemSearch" placeholder="Tap to browse or type to search..." oninput="searchItems()" onfocus="showItemDropdown()" autocomplete="off">
+    <!-- Lock Banner (shown after verification) -->
+    <div id="lockBanner" class="lock-banner" style="display:none;">
+        <div class="icon">🔒</div>
+        <div class="info">
+            <strong>Load Verified & Locked</strong>
+            <span id="lockInfo">Checked by checker</span>
+        </div>
     </div>
-    <div id="searchResults" class="search-dropdown hidden"></div>
 
-    <!-- Loaded Items -->
-    <div class="flex-between mb-2" style="margin-top:12px;">
+    <!-- Search Section (hidden when locked) -->
+    <div id="addSection">
+        <div class="section-label">➕ Add Items</div>
+        <div class="search-bar mb-2">
+            <input type="text" class="input-field" id="itemSearch" placeholder="Tap to browse or type to search..." 
+                oninput="searchItems()" onfocus="showItemDropdown()" autocomplete="off">
+            <button class="scan-btn" onclick="openScanner(onScan)">📷</button>
+        </div>
+        <div id="searchResults" class="search-dropdown hidden"></div>
+    </div>
+
+    <!-- Top-up Section (shown when locked) -->
+    <div id="topupSection" style="display:none;">
+        <div class="section-label">📦 Afternoon Top-up (needs re-verification)</div>
+        <div class="search-bar mb-2">
+            <input type="text" class="input-field" id="topupSearch" placeholder="Search item to top-up..." 
+                oninput="searchTopup()" onfocus="showTopupDropdown()" autocomplete="off">
+            <button class="scan-btn" onclick="openScanner(onTopupScan)">📷</button>
+        </div>
+        <div id="topupResults" class="search-dropdown hidden"></div>
+    </div>
+
+    <!-- Loaded Items Section -->
+    <div class="flex-between mb-2" style="margin-top: 12px;">
         <div class="section-label" style="margin:0;">🚛 Loaded Items</div>
-        <button class="btn btn-success" id="submitLoad" onclick="submitForChecking()" style="display:none; padding:6px 14px; font-size:0.75rem;">✅ Submit for Checking</button>
+        <button class="btn btn-success" id="submitLoad" onclick="submitForChecking()" style="display:none; padding:6px 14px; font-size:0.75rem;">
+            ✅ Submit for Checking
+        </button>
     </div>
     <div id="loadList">
-        <div class="text-center text-muted" style="padding:30px 12px;">
-            <div style="font-size:2rem;margin-bottom:8px;">📦</div>
+        <div class="text-center text-muted" style="padding: 30px 12px;">
+            <div style="font-size: 2rem; margin-bottom: 8px;">📦</div>
             <div>No items loaded yet</div>
             <div class="text-sm" style="margin-top:4px;">Search above to start adding items</div>
+        </div>
+    </div>
+</div>
+
+<!-- Top-up Qty Modal -->
+<div class="modal-overlay" id="topupModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">📦 Top-up Stock</div>
+        <div class="text-sm mb-2" id="topupItemName"></div>
+        <div class="text-sm text-muted mb-3">Current loaded: <span class="fw-bold" id="topupCurrent">0</span></div>
+        <div class="mb-3">
+            <label class="text-sm text-muted">Additional Quantity</label>
+            <div class="qty-control" style="justify-content:center;display:inline-flex;width:100%;">
+                <button class="qty-btn" onclick="topupAdjust(-10)" style="width:60px;height:50px;font-size:1.3rem;">−10</button>
+                <input type="number" class="qty-value" id="topupQty" value="10" min="1" style="width:80px;height:50px;font-size:1.3rem;text-align:center;" onclick="this.select()">
+                <button class="qty-btn" onclick="topupAdjust(10)" style="width:60px;height:50px;font-size:1.3rem;">+10</button>
+            </div>
+        </div>
+        <div class="text-sm text-muted text-center mb-3" style="color:var(--accent);">⚠️ Item will need re-verification by checker</div>
+        <div class="grid-2">
+            <button class="btn btn-secondary" onclick="document.getElementById('topupModal').classList.remove('active')">Cancel</button>
+            <button class="btn btn-primary" onclick="confirmTopup()">✅ Add Stock</button>
         </div>
     </div>
 </div>
@@ -69,11 +142,11 @@
         <div class="mb-3">
             <label class="text-sm text-muted">Quantity</label>
             <div class="qty-control" style="justify-content:center;display:inline-flex;width:100%;">
-                <button class="qty-btn" onclick="addQtyAdjust(-10)" style="width:60px;height:50px;font-size:1.1rem;">−10</button>
-                <button class="qty-btn" onclick="addQtyAdjust(-1)" style="width:50px;height:50px;font-size:1.3rem;">−</button>
+                <button class="qty-btn" onclick="addQtyAdjust(-10)" style="width:60px;height:50px;font-size:1.3rem;">−10</button>
+                <button class="qty-btn" onclick="addQtyAdjust(-1)" style="width:50px;height:50px;font-size:1.3rem;">−1</button>
                 <input type="number" class="qty-value" id="addQtyInput" value="1" min="1" style="width:80px;height:50px;font-size:1.3rem;text-align:center;" onclick="this.select()">
-                <button class="qty-btn" onclick="addQtyAdjust(1)" style="width:50px;height:50px;font-size:1.3rem;">+</button>
-                <button class="qty-btn" onclick="addQtyAdjust(10)" style="width:60px;height:50px;font-size:1.1rem;">+10</button>
+                <button class="qty-btn" onclick="addQtyAdjust(1)" style="width:50px;height:50px;font-size:1.3rem;">+1</button>
+                <button class="qty-btn" onclick="addQtyAdjust(10)" style="width:60px;height:50px;font-size:1.3rem;">+10</button>
             </div>
         </div>
         <div class="grid-2">
@@ -83,70 +156,148 @@
     </div>
 </div>
 
-<script src="config.js"></script>
-<script src="sheets.js"></script>
-<script src="base.js"></script>
+<!-- Submit Success Overlay -->
+<div id="submitSuccess" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:250; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:24px;">
+    <div style="font-size:4rem; margin-bottom:16px;">✅</div>
+    <div style="font-size:1.4rem; font-weight:700; color:#22c55e; margin-bottom:8px;">Load Submitted!</div>
+    <div style="color:var(--text2); font-size:0.9rem; margin-bottom:24px;">Ready for checker verification.</div>
+    <div id="submitSummary" style="background:var(--surface); border-radius:12px; padding:16px 20px; margin-bottom:28px; min-width:260px; border:1px solid var(--border);"></div>
+    <a href="/pos" class="btn btn-primary" style="width:260px; padding:14px; font-size:1rem; text-decoration:none; text-align:center; display:block; margin-bottom:12px;">🛒 Start Selling</a>
+    <button class="btn btn-secondary" onclick="closeSubmitSuccess()" style="width:260px; padding:12px; font-size:0.9rem;">← Stay on Load Screen</button>
+</div>
+{% endblock %}
+
+{% block extra_js %}
 <script>
 let loadItems = [];
 let allItems = [];
 let searchTimeout;
 let loadedSKUs = new Set();
-let pendingAddItem = null;
+let isLocked = false;
+let topupItem = null;
 
 async function loadData() {
-    const result = await Sheets.getLoad();
-    loadItems = result || [];
+    loadItems = await apiFetch('/api/load?date={{ today }}');
+    if (loadItems.error) loadItems = [];
     loadedSKUs = new Set(loadItems.map(i => i.sku));
+    
+    // Check lock status
+    const status = await apiFetch('/api/load/status');
+    isLocked = status.locked || false;
+    
+    updateUI();
     renderLoad();
 }
 
-async function loadAllItems() {
-    allItems = await Sheets.getAllItems();
-    if (!allItems.length) showToast('Could not load item catalog', true);
+function updateUI() {
+    if (isLocked) {
+        document.getElementById('addSection').style.display = 'none';
+        document.getElementById('topupSection').style.display = 'block';
+        document.getElementById('lockBanner').style.display = 'flex';
+        
+        // Find checker info
+        const verified = loadItems.find(i => i.verified && i.checkerName);
+        if (verified) {
+            document.getElementById('lockInfo').textContent = 
+                'Checked by ' + verified.checkerName + (verified.checkedAt ? ' at ' + verified.checkedAt : '');
+        }
+        
+        // Show re-check needed if any unverified items (from top-up)
+        const unverified = loadItems.filter(i => !i.verified);
+        if (unverified.length > 0) {
+            document.getElementById('lockBanner').innerHTML = `
+                <div class="icon">⚠️</div>
+                <div class="info">
+                    <strong>Top-up Needs Verification</strong>
+                    <span>${unverified.length} item(s) need re-checking</span>
+                </div>`;
+            document.getElementById('lockBanner').style.background = 'linear-gradient(135deg, #7c4a00, #b36b00)';
+        }
+    } else {
+        document.getElementById('addSection').style.display = 'block';
+        document.getElementById('topupSection').style.display = 'none';
+        document.getElementById('lockBanner').style.display = 'none';
+    }
 }
 
 function renderLoad() {
     const el = document.getElementById('loadList');
     if (!loadItems.length) {
-        el.innerHTML = `<div class="text-center text-muted" style="padding:30px 12px;">
-            <div style="font-size:2rem;margin-bottom:8px;">📦</div>
+        el.innerHTML = `<div class="text-center text-muted" style="padding: 30px 12px;">
+            <div style="font-size: 2rem; margin-bottom: 8px;">📦</div>
             <div>No items loaded yet</div>
             <div class="text-sm" style="margin-top:4px;">Search above to start adding items</div>
         </div>`;
         document.getElementById('submitLoad').style.display = 'none';
+        document.getElementById('loadPhotoBtn').style.display = 'none';
     } else {
-        el.innerHTML = loadItems.map(item => `
-            <div class="load-item ${item.verified ? 'verified' : ''}">
+        el.innerHTML = loadItems.map(item => {
+            const cls = item.verified ? 'verified' : (isLocked ? 'unverified-topup' : '');
+            const statusBadge = item.verified 
+                ? '<span style="color:var(--green)">✓ Verified</span>' 
+                : (isLocked ? '<span style="color:var(--accent)">⚠ Needs check</span>' : '');
+            
+            // Only show edit controls if NOT locked
+            const controls = isLocked ? `
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span class="fw-bold" style="font-size:0.95rem;min-width:40px;text-align:center;">${item.loadQty}</span>
+                </div>` : `
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <div class="qty-control">
+                        <button class="qty-btn" onclick="updateLoadQty(${item.loadId}, ${item.loadQty - 10})">−</button>
+                        <input type="number" value="${item.loadQty}" min="1"
+                            style="width:55px;text-align:center;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.9rem;padding:6px 2px;"
+                            onchange="updateLoadQty(${item.loadId}, parseInt(this.value)||1)"
+                            onclick="this.select()">
+                        <button class="qty-btn" onclick="updateLoadQty(${item.loadId}, ${item.loadQty + 10})">+</button>
+                    </div>
+                    <button onclick="removeLoad(${item.loadId})" style="background:none;border:none;color:var(--red);font-size:1.1rem;cursor:pointer;padding:4px 2px;">✕</button>
+                </div>`;
+            
+            return `
+            <div class="load-item ${cls}">
                 <div class="item-info">
                     <div class="item-name">${item.name}</div>
-                    <div class="item-sub">SKU: ${item.sku} • ${fmt(item.price)}${item.soldQty > 0 ? ' • <span style="color:var(--green)">Sold: ' + item.soldQty + '</span>' : ''}${item.verified ? ' • <span style="color:var(--green)">✓ Verified</span>' : ''}</div>
+                    <div class="item-sub">SKU: ${item.sku} • ${fmt(item.price)} ${statusBadge}${item.soldQty > 0 ? ' • <span style="color:var(--green)">Sold: ' + item.soldQty + '</span>' : ''}</div>
                 </div>
-                <div style="display:flex;align-items:center;gap:6px;">
-                    <span class="fw-bold" style="min-width:40px;text-align:center;font-size:0.95rem;">${item.loadQty}</span>
-                    <button onclick="removeLoad('${item.loadId}')" style="background:none;border:none;color:var(--red);font-size:1.1rem;cursor:pointer;padding:4px 2px;">✕</button>
-                </div>
-            </div>`).join('');
-        document.getElementById('submitLoad').style.display = 'inline-flex';
+                ${controls}
+            </div>`;
+        }).join('');
+        
+        // Show submit only if NOT locked
+        document.getElementById('submitLoad').style.display = isLocked ? 'none' : 'inline-flex';
     }
     document.getElementById('totalItems').textContent = loadItems.length;
     document.getElementById('totalQty').textContent = loadItems.reduce((s, i) => s + i.loadQty, 0);
     document.getElementById('totalValue').textContent = fmt(loadItems.reduce((s, i) => s + (i.loadQty * i.price), 0));
 }
 
+// === ITEM SEARCH (pre-verification) ===
+async function loadAllItems() {
+    allItems = await apiFetch('/api/items');
+    if (allItems.error) { allItems = []; showToast('Error loading items', true); }
+}
+
 function showItemDropdown() {
     const q = document.getElementById('itemSearch').value.trim().toLowerCase();
     let filtered = allItems;
-    if (q.length > 0) filtered = allItems.filter(i => i.name.toLowerCase().includes(q) || i.sku.toLowerCase().includes(q));
+    if (q.length > 0) {
+        filtered = allItems.filter(item => 
+            item.name.toLowerCase().includes(q) || item.sku.toLowerCase().includes(q)
+        );
+    }
     const el = document.getElementById('searchResults');
     if (!filtered.length) {
-        el.innerHTML = '<div class="text-center text-muted" style="padding:12px;">No matching items</div>';
+        el.innerHTML = allItems.length 
+            ? '<div class="text-center text-muted" style="padding:12px;">No matching items</div>'
+            : '<div class="text-center text-muted" style="padding:12px;">No items available</div>';
         el.classList.remove('hidden');
         return;
     }
     el.innerHTML = filtered.slice(0, 40).map(item => {
         const isLoaded = loadedSKUs.has(item.sku);
         return `
-        <div class="search-item ${isLoaded ? '' : ''}" onclick='${isLoaded ? 'showToast("Already loaded",true)' : 'openAddModal(' + JSON.stringify(item).replace(/'/g,"&#39;") + ')'}'>
+        <div class="search-item ${isLoaded ? 'already-loaded' : ''}" onclick='${isLoaded ? "showToast(\"Already loaded — adjust qty below\", true)" : "addLoad(" + JSON.stringify(item).replace(/'/g, "&#39;") + ")"}'>
             <div style="flex:1;min-width:0;">
                 <div style="font-size:0.85rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.name}</div>
                 <div style="font-size:0.7rem;color:var(--text2);">SKU: ${item.sku} • ${fmt(item.wholesale)}</div>
@@ -163,7 +314,21 @@ function searchItems() {
     searchTimeout = setTimeout(showItemDropdown, 150);
 }
 
-function openAddModal(item) {
+async function onScan(code) {
+    showToast('Scanned: ' + code);
+    const data = await apiFetch('/api/items/barcode/' + encodeURIComponent(code));
+    if (data.found) addLoad({sku: data.sku, name: data.name, wholesale: data.wholesale});
+    else showToast('Not found', true);
+}
+
+let pendingAddItem = null;
+
+async function addLoad(item) {
+    if (loadedSKUs.has(item.sku)) {
+        showToast(item.name + ' already loaded — adjust qty below', true);
+        return;
+    }
+    // Open qty modal instead of adding with qty=1
     pendingAddItem = item;
     document.getElementById('addQtyItemName').textContent = item.name;
     document.getElementById('addQtyItemSub').textContent = 'SKU: ' + item.sku + ' • ' + fmt(item.wholesale);
@@ -183,51 +348,140 @@ async function confirmAddLoad() {
     if (!pendingAddItem) return;
     const qty = parseInt(document.getElementById('addQtyInput').value) || 1;
     document.getElementById('addQtyModal').classList.remove('active');
-    document.getElementById('itemSearch').value = '';
-    document.getElementById('searchResults').classList.add('hidden');
-
-    // Optimistic update
-    const tempId = 'LOCAL-' + Date.now();
-    loadItems.push({ loadId: tempId, sku: pendingAddItem.sku, name: pendingAddItem.name, price: pendingAddItem.wholesale, loadQty: qty, soldQty: 0, returnQty: 0, verified: false });
-    loadedSKUs.add(pendingAddItem.sku);
-    renderLoad();
+    
+    const result = await apiPost('/api/load', { sku: pendingAddItem.sku, name: pendingAddItem.name, price: pendingAddItem.wholesale, qty: qty });
+    if (result.error) { showToast(result.error, true); return; }
     showToast('✓ ' + pendingAddItem.name + ' ×' + qty + ' added');
-
-    const result = await Sheets.addLoadItem(pendingAddItem.sku, pendingAddItem.name, pendingAddItem.wholesale, qty);
-    if (!result.success && !result.offline) {
-        // Rollback
-        loadItems = loadItems.filter(i => i.loadId !== tempId);
-        loadedSKUs.delete(pendingAddItem.sku);
-        renderLoad();
-        showToast('Error saving item', true);
-    }
     pendingAddItem = null;
-    // Refresh from Sheets to get real ID
-    setTimeout(loadData, 2000);
+    await loadData();
+    showItemDropdown();
 }
 
-async function removeLoad(loadId) {
-    // Remove from local array immediately
-    loadItems = loadItems.filter(i => i.loadId !== loadId);
-    loadedSKUs = new Set(loadItems.map(i => i.sku));
-    renderLoad();
-    await Sheets.writeRows('load_remove', { loadId });
+async function updateLoadQty(id, qty) {
+    if (qty < 1) return;
+    const result = await apiPut('/api/load/' + id, { loadQty: qty });
+    if (result.error) { showToast(result.error, true); return; }
+    loadData();
+}
+
+async function removeLoad(id) {
+    const result = await apiFetch('/api/load/' + id, { method: 'DELETE' });
+    if (result.error) { showToast(result.error, true); return; }
+    await loadData();
+    showItemDropdown();
 }
 
 function submitForChecking() {
-    showToast('Load submitted for checking! ✅');
-    Sheets.writeRows('load_submit', { date: Sheets.today() });
+    const itemCount = loadItems.length;
+    const totalQty = loadItems.reduce((s, i) => s + i.loadQty, 0);
+    const totalVal = loadItems.reduce((s, i) => s + (i.loadQty * i.price), 0);
+    
+    // Show success overlay
+    document.getElementById('submitSummary').innerHTML = `
+        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+            <span style="color:var(--text2); font-size:0.85rem;">Items</span>
+            <span style="font-weight:600;">${itemCount}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+            <span style="color:var(--text2); font-size:0.85rem;">Total Qty</span>
+            <span style="font-weight:600;">${totalQty}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between;">
+            <span style="color:var(--text2); font-size:0.85rem;">Total Value</span>
+            <span style="font-weight:600; color:var(--green);">${fmt(totalVal)}</span>
+        </div>`;
+    document.getElementById('submitSuccess').style.display = 'flex';
 }
 
-// Init
+function closeSubmitSuccess() {
+    document.getElementById('submitSuccess').style.display = 'none';
+}
+
+// === TOP-UP SEARCH (post-verification) ===
+function showTopupDropdown() {
+    const q = document.getElementById('topupSearch').value.trim().toLowerCase();
+    let filtered = allItems;
+    if (q.length > 0) {
+        filtered = allItems.filter(item => 
+            item.name.toLowerCase().includes(q) || item.sku.toLowerCase().includes(q)
+        );
+    }
+    const el = document.getElementById('topupResults');
+    if (!filtered.length) {
+        el.innerHTML = '<div class="text-center text-muted" style="padding:12px;">No matching items</div>';
+        el.classList.remove('hidden');
+        return;
+    }
+    el.innerHTML = filtered.slice(0, 30).map(item => {
+        const loaded = loadItems.find(i => i.sku === item.sku);
+        const currentQty = loaded ? loaded.loadQty : 0;
+        return `
+        <div class="search-item" onclick='openTopupModal("${item.sku}", "${item.name.replace(/"/g, "&quot;")}", ${item.wholesale}, ${currentQty})'>
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:0.85rem;font-weight:500;">${item.name}</div>
+                <div style="font-size:0.7rem;color:var(--text2);">SKU: ${item.sku} • ${fmt(item.wholesale)} ${currentQty > 0 ? '• Current: ' + currentQty : '• NEW'}</div>
+            </div>
+            <div class="add-badge">+ Top-up</div>
+        </div>`;
+    }).join('');
+    el.classList.remove('hidden');
+}
+
+function searchTopup() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(showTopupDropdown, 150);
+}
+
+async function onTopupScan(code) {
+    showToast('Scanned: ' + code);
+    const data = await apiFetch('/api/items/barcode/' + encodeURIComponent(code));
+    if (data.found) {
+        const loaded = loadItems.find(i => i.sku === data.sku);
+        openTopupModal(data.sku, data.name, data.wholesale, loaded ? loaded.loadQty : 0);
+    } else {
+        showToast('Not found', true);
+    }
+}
+
+function openTopupModal(sku, name, price, currentQty) {
+    topupItem = { sku, name, price, currentQty };
+    document.getElementById('topupItemName').textContent = name;
+    document.getElementById('topupCurrent').textContent = currentQty || 'Not loaded';
+    document.getElementById('topupQty').value = 10;
+    document.getElementById('topupModal').classList.add('active');
+}
+
+function topupAdjust(delta) {
+    const el = document.getElementById('topupQty');
+    let v = (parseInt(el.value) || 0) + delta;
+    if (v < 1) v = 1;
+    el.value = v;
+}
+
+async function confirmTopup() {
+    if (!topupItem) return;
+    const extra = parseInt(document.getElementById('topupQty').value) || 0;
+    if (extra < 1) { showToast('Enter quantity', true); return; }
+    
+    const result = await apiPost('/api/load/topup', {
+        sku: topupItem.sku, 
+        name: topupItem.name, 
+        price: topupItem.price, 
+        qty: extra
+    });
+    
+    if (result.error) { showToast(result.error, true); return; }
+    
+    document.getElementById('topupModal').classList.remove('active');
+    const newTotal = topupItem.currentQty + extra;
+    showToast(`✓ Top-up: +${extra} → Total: ${newTotal}. Needs re-verification.`);
+    document.getElementById('topupSearch').value = '';
+    document.getElementById('topupResults').classList.add('hidden');
+    await loadData();
+}
+
+// === INIT ===
 loadData();
 loadAllItems();
-// Close dropdown on outside tap
-document.addEventListener('click', e => {
-    if (!e.target.closest('#searchResults') && !e.target.closest('#itemSearch')) {
-        document.getElementById('searchResults').classList.add('hidden');
-    }
-});
 </script>
-</body>
-</html>
+{% endblock %}
