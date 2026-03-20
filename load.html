@@ -165,19 +165,19 @@ function renderGrid(){
     el.innerHTML=items.map(item=>{
         const alreadyLoaded=loadedSkus.has(item.sku);
         const inCart=loadCart.find(c=>c.sku===item.sku);
+        const safeJson=JSON.stringify(item).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+        const clickHandler=alreadyLoaded&&!inCart
+            ? 'showToast(\'Already loaded\',true)'
+            : `openAddModal(JSON.parse(this.getAttribute('data-item').replace(/&quot;/g,'"')))`;
         return`<div class="item-card ${alreadyLoaded&&!inCart?'already-loaded':''} ${inCart?'in-cart':''}"
-                onclick="${alreadyLoaded&&!inCart?'showToast(\'Already loaded\',true)':'promptQty(JSON.parse(this.dataset.item))'}">
+                data-item="${safeJson}"
+                onclick="${clickHandler}">
             ${inCart?'<span class="ic-badge">'+inCart.qty+'</span>':''}
             <div class="ic-name">${item.name}</div>
             <div class="ic-price">${fmt(item.wholesale||item.price)}</div>
             ${alreadyLoaded&&!inCart?'<div style="font-size:0.6rem;color:var(--text2);">Loaded</div>':''}
-            <span style="display:none;" data-item="${JSON.stringify(item).replace(/"/g,'&quot;')}"></span>
         </div>`;
     }).join('');
-    document.querySelectorAll('.item-card:not(.already-loaded)').forEach(card=>{
-        const span=card.querySelector('[data-item]');
-        if(span)card.dataset.item=span.getAttribute('data-item');
-    });
 }
 function filterGrid(){searchQ=document.getElementById('itemSearch').value;renderGrid();}
 function promptQty(item){
