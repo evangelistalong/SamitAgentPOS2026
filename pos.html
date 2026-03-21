@@ -384,28 +384,30 @@ function selectCustomer(code,name,balance){
     if(custNameLbl)custNameLbl.textContent=name;
     const custCodeLbl=document.getElementById('custCodeLbl');
     if(custCodeLbl)custCodeLbl.textContent='Code: '+code;
-    // Balance card
+    // Balance card (null-safe — main screen card was removed)
     const balCard=document.getElementById('custBalCard');
     const balLbl=document.getElementById('custBalLbl');
-    if(balance<0){
-        balCard.style.background='rgba(239,68,68,0.12)';
-        balLbl.style.color='var(--red)';
-        balLbl.textContent=fmt(Math.abs(balance))+' OWES';
-        document.getElementById('prevBalCard').style.display='block';
-        document.getElementById('prevBalInput').value=Math.abs(balance).toFixed(2);
-        includePrevBal=true;
-    }else if(balance>0){
-        balCard.style.background='rgba(239,68,68,0.12)';
-        balLbl.style.color='var(--red)';
-        balLbl.textContent=fmt(balance)+' OWES';
-        document.getElementById('prevBalCard').style.display='block';
-        document.getElementById('prevBalInput').value=balance.toFixed(2);
+    const owes = balance < 0 ? Math.abs(balance) : balance;
+    const hasBalance = balance !== 0;
+    if(balCard && balLbl){
+        if(hasBalance){
+            balCard.style.background='rgba(239,68,68,0.12)';
+            balLbl.style.color='var(--red)';
+            balLbl.textContent=fmt(owes)+' OWES';
+        }else{
+            balCard.style.background='rgba(74,222,128,0.12)';
+            balLbl.style.color='var(--green)';
+            balLbl.textContent='CLEAR';
+        }
+    }
+    const prevCard=document.getElementById('prevBalCard');
+    const prevInput=document.getElementById('prevBalInput');
+    if(hasBalance){
+        if(prevCard)prevCard.style.display='block';
+        if(prevInput)prevInput.value=owes.toFixed(2);
         includePrevBal=true;
     }else{
-        balCard.style.background='rgba(74,222,128,0.12)';
-        balLbl.style.color='var(--green)';
-        balLbl.textContent='CLEAR';
-        document.getElementById('prevBalCard').style.display='none';
+        if(prevCard)prevCard.style.display='none';
         includePrevBal=false;
     }
     document.getElementById('custPickerModal').classList.remove('active');
