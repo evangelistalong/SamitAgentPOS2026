@@ -54,22 +54,7 @@
     <a href="#" class="topbar-action text-sm" onclick="showHistory();return false;">&#128203;</a>
 </div>
 <div class="content" style="padding-bottom:0;">
-    <!-- Customer pre-select (optional - can also select at checkout) -->
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:0 2px;">
-        <div id="custEmpty" style="flex:1;display:flex;align-items:center;gap:8px;">
-            <span style="font-size:0.8rem;color:var(--text2);">&#128101; Walk-in</span>
-        </div>
-        <div id="custSelected" style="flex:1;display:none;align-items:center;gap:6px;min-width:0;">
-            <div style="flex:1;min-width:0;">
-                <span class="fw-bold" id="custNameLbl" style="font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;"></span>
-            </div>
-            <div id="custBalCard" style="border-radius:6px;padding:3px 8px;font-size:0.72rem;font-weight:700;white-space:nowrap;">
-                <span id="custBalLbl"></span>
-            </div>
-            <button onclick="openCustHistory()" style="background:none;border:none;color:var(--blue);font-size:0.9rem;cursor:pointer;padding:2px;">&#128220;</button>
-            <button onclick="clearCustomer()" style="background:none;border:none;color:var(--text2);font-size:0.9rem;cursor:pointer;padding:2px;">&#10005;</button>
-        </div>
-    </div>
+
     <div style="margin-bottom:8px;">
         <input type="text" class="input-field" id="itemSearch" placeholder="&#128269; Search items..." oninput="filterGrid()" autocomplete="off" style="font-size:0.85rem;">
     </div>
@@ -184,6 +169,7 @@
                     </div>
                     <div style="display:flex;align-items:center;gap:8px;">
                         <button onclick="openCustHistory()" style="background:none;border:none;color:var(--blue);font-size:0.78rem;cursor:pointer;font-weight:600;">&#128220; History</button>
+                        <button onclick="openCustPickerFromPayment()" style="background:rgba(212,168,67,0.15);border:1px solid var(--accent);color:var(--accent);border-radius:6px;padding:2px 8px;font-size:0.72rem;cursor:pointer;font-weight:600;">Change</button>
                         <button onclick="clearCustomerFromPayment()" style="background:none;border:none;color:var(--text2);font-size:0.9rem;cursor:pointer;">&#10005;</button>
                     </div>
                 </div>
@@ -278,7 +264,7 @@ function renderGrid(){
         const inCart=cart.find(c=>c.sku===item.sku);
         const soldOut=(item.remaining!==undefined)&&item.remaining<=0;
         const safeItem=JSON.stringify(item).replace(/"/g,'&quot;');
-        return`<div class="item-card ${inCart?'in-cart':''} ${soldOut?'sold-out':''}" onclick="${soldOut?'showToast(\'Sold out\',true)':'promptQty(JSON.parse(this.dataset.item))'}">
+        return`<div class="item-card ${inCart?'in-cart':''} ${soldOut?'sold-out':''}" onclick="${soldOut?'showToast(\'Sold out\',true)':`promptQty(JSON.parse(this.getAttribute('data-item').replace(/&quot;/g,'"')))`}">
             ${!item.discountable?'<span class="ic-nd">ND</span>':''}
             ${inCart?'<span class="ic-badge">'+inCart.qty+'</span>':''}
             <div class="ic-name">${item.name}</div>
@@ -288,10 +274,6 @@ function renderGrid(){
         </div>`;
     }).join('');
     // Attach item data via dataset
-    document.querySelectorAll('.item-card:not(.sold-out)').forEach((card,idx)=>{
-        const span=card.querySelector('[data-item]');
-        if(span)card.dataset.item=span.getAttribute('data-item');
-    });
 }
 function filterGrid(){searchQ=document.getElementById('itemSearch').value;renderGrid();}
 function promptQty(item){
