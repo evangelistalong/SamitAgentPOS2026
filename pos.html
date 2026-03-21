@@ -260,17 +260,18 @@ function renderGrid(){
     if(q)items=items.filter(i=>i.name.toLowerCase().includes(q)||i.sku.includes(q));
     const el=document.getElementById('itemGrid');
     if(!items.length){el.innerHTML='<div class="text-center text-muted" style="grid-column:span 3;padding:30px 0;"><div style="font-size:2rem;">&#128269;</div><div>No items</div></div>';return;}
-    el.innerHTML=items.map(item=>{
+    // Store items for index-based onclick
+    window._posItems = items;
+    el.innerHTML=items.map((item,idx)=>{
         const inCart=cart.find(c=>c.sku===item.sku);
         const soldOut=(item.remaining!==undefined)&&item.remaining<=0;
-        const safeItem=JSON.stringify(item).replace(/"/g,'&quot;');
-        return`<div class="item-card ${inCart?'in-cart':''} ${soldOut?'sold-out':''}" onclick="${soldOut?'showToast(\'Sold out\',true)':`promptQty(JSON.parse(this.getAttribute('data-item').replace(/&quot;/g,'"')))`}">
+        const clickFn=soldOut?'showToast(\'Sold out\',true)':'promptQty(window._posItems['+idx+'])';
+        return`<div class="item-card ${inCart?'in-cart':''} ${soldOut?'sold-out':''}" onclick="${clickFn}">
             ${!item.discountable?'<span class="ic-nd">ND</span>':''}
             ${inCart?'<span class="ic-badge">'+inCart.qty+'</span>':''}
             <div class="ic-name">${item.name}</div>
             <div class="ic-price">${fmt(item.wholesale||item.price)}</div>
             ${item.remaining!==undefined?'<div class="ic-stock">'+(soldOut?'Sold out':item.remaining+' left')+'</div>':''}
-            <span style="display:none;" data-item="${safeItem}"></span>
         </div>`;
     }).join('');
     // Attach item data via dataset
@@ -667,7 +668,8 @@ async function completeSale(){
     btn.disabled=false;btn.textContent='\u2705 Complete';
 }
 function showLocalReceipt(p){
-    const mult=1-(p.discountPct/100);
+    // Use compound multiplier if available, fallback to pct-based
+    const mult=p.discountMult!==undefined ? p.discountMult : (1-(p.discountPct/100));
     const discSub=p.items.filter(i=>i.discountable).reduce((s,i)=>s+i.qty*i.price,0);
     const nonDisc=p.items.filter(i=>!i.discountable).reduce((s,i)=>s+i.qty*i.price,0);
     const discAmt=discSub*(p.discountPct/100);const total=discSub+nonDisc-discAmt;
@@ -676,15 +678,15 @@ function showLocalReceipt(p){
     html+=`<div class="receipt-divider"></div>`;
     p.items.forEach(i=>{const lt=i.qty*i.price*(i.discountable?mult:1);html+=`<div>${i.name}</div><div class="receipt-line"><span>&nbsp;&nbsp;${i.qty} \u00d7 ${fmtN(i.price)}</span><span>${fmtN(lt)}</span></div>`;});
     html+=`<div class="receipt-divider"></div><div class="receipt-line"><span>Subtotal</span><span>${fmtN(discSub+nonDisc)}</span></div>`;
-    // Show each active discount line on receipt
-        const rts2 = RATES();
-        let runPrice2 = discSub;
+    // Show each active discount line on receipt (compound)
+        const rts2=RATES();
+        let runPrice2=discSub;
+        p.items.filter(i=>i.discountable).forEach(()=>{}); // just need discSub
         discounts.forEach((on,i)=>{
             if(on){
-                const lineAmt2 = runPrice2 * rts2[i];
-                const pct2 = (rts2[i]*100).toFixed(0);
-                html+=`<div class="receipt-line"><span>${pct2}% Discount</span><span>-${fmtN(lineAmt2)}</span></div>`;
-                runPrice2 -= lineAmt2;
+                const lineAmt2=runPrice2*rts2[i];
+                html+=`<div class="receipt-line"><span>${(rts2[i]*100).toFixed(0)}% Discount</span><span>-${fmtN(lineAmt2)}</span></div>`;
+                runPrice2-=lineAmt2;
             }
         });
     html+=`<div class="receipt-line receipt-total"><span>Total</span><span>${fmtN(total)}</span></div>`;
