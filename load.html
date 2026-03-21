@@ -233,18 +233,30 @@ function renderLoadList(){
     document.getElementById('lcQty').textContent=all.reduce((s,i)=>s+(i.loadQty||i.qty||0),0);
     document.getElementById('lcValue').textContent=fmt(all.reduce((s,i)=>s+(i.loadQty||i.qty||0)*i.price,0));
     if(!all.length){document.getElementById('loadList').innerHTML='<div class="text-center text-muted" style="padding:20px;">No items in load</div>';return;}
-    document.getElementById('loadList').innerHTML=all.map((item,i)=>`
-        <div class="load-item">
+    document.getElementById('loadList').innerHTML=all.map((item,i)=>{
+        const cartIdx = i - existingLoad.length;
+        const qty = item.loadQty||item.qty||0;
+        const controls = !item.isExisting ? `
+            <div style="display:flex;align-items:center;gap:4px;">
+                <button onclick="loadCartAdj(${cartIdx},-1)" style="background:var(--load-bg3);border:none;color:var(--text);width:28px;height:28px;border-radius:6px;font-size:1rem;cursor:pointer;">&#8722;</button>
+                <span class="fw-bold" style="min-width:32px;text-align:center;font-size:0.95rem;">${qty}</span>
+                <button onclick="loadCartAdj(${cartIdx},1)" style="background:var(--load-bg3);border:none;color:var(--text);width:28px;height:28px;border-radius:6px;font-size:1rem;cursor:pointer;">+</button>
+                <button onclick="removeFromLoad(${cartIdx})" style="background:none;border:none;color:var(--red);font-size:1rem;cursor:pointer;padding:0 4px;">&#10005;</button>
+            </div>` : `<span class="fw-bold" style="min-width:36px;text-align:center;color:var(--load-accent);">${qty}</span>`;
+        return`<div class="load-item">
             <div class="li-info">
                 <div class="li-name">${item.name}</div>
                 <div class="li-sub">SKU: ${item.sku} \u2022 ${fmt(item.price)}${item.isExisting?' \u2022 <span style="color:var(--load-accent);font-size:0.65rem;">Already loaded</span>':''}</div>
             </div>
-            <div style="display:flex;align-items:center;gap:6px;">
-                <span class="fw-bold" style="min-width:36px;text-align:center;">${item.loadQty||item.qty}</span>
-                ${!item.isExisting?`<button onclick="removeFromLoad(${i-existingLoad.length})" style="background:none;border:none;color:var(--red);font-size:1.1rem;cursor:pointer;">\u2715</button>`:''}
-            </div>
-            <div class="li-total" style="color:var(--load-accent);">${fmt((item.loadQty||item.qty)*item.price)}</div>
-        </div>`).join('');
+            ${controls}
+            <div class="li-total" style="color:var(--load-accent);">${fmt(qty*item.price)}</div>
+        </div>`;
+    }).join('');
+}
+function loadCartAdj(i,d){
+    if(i<0||i>=loadCart.length)return;
+    loadCart[i].qty=Math.max(1,loadCart[i].qty+d);
+    renderLoadList();updateFloatBtn();renderGrid();
 }
 function removeFromLoad(i){loadCart.splice(i,1);renderLoadList();updateFloatBtn();renderGrid();}
 async function submitForChecking(){
