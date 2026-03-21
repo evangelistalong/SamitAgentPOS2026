@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+{% block title %}Transactions{% endblock %}
+{% block body %}
+<div class="topbar">
+    <a href="/" class="topbar-back">&lsaquo;</a>
+    <h1>&#128203; Transactions</h1>
+    <input type="date" id="dateSelect" value="{{ today }}" max="{{ today }}" style="background:transparent;border:none;color:var(--accent);font-size:0.85rem;" onchange="loadData()">
+<button onclick="printPage()" style="position:fixed;top:8px;right:12px;z-index:100;background:none;border:none;color:#fff;font-size:1.1rem;cursor:pointer;">&#128438;</button>
+</div>
+<div class="content">
+    <!-- Summary Banner -->
+    <div class="card grid-3 mb-4">
+        <div class="stat">
+            <div class="stat-value stat-accent" id="transCount">0</div>
+            <div class="stat-label">Sales</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value stat-green" id="transTotal">--</div>
+            <div class="stat-label">Net Sales</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value stat-red" id="transCredit">--</div>
+            <div class="stat-label">Credit</div>
+        </div>
+    </div>
+
+    <div id="transList">
+        <div class="empty-state"><div class="icon">&#128203;</div><p>Loading...</p></div>
+    </div>
+</div>
+
+<!-- Transaction Detail Modal -->
+<div class="modal-overlay" id="detailModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div id="detailContent"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:1rem;">
+            <button class="btn btn-secondary" onclick="document.getElementById('detailModal').classList.remove('active')">Close</button>
+            <a id="printReceiptBtn" href="#" class="btn btn-secondary" style="text-align:center;text-decoration:none;">&#128424;&#65039; Print</a>
+            <button class="btn btn-primary" onclick="shareReceipt()">&#128228; Share</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+async function loadData() {
+    const date = document.getElementById('dateSelect').value;
+    const data = await apiFetch('/api/transactions?date=' + date);
+    
+    if (data.error || !data.length) {
+        document.getElementById('transList').innerHTML = '<div class="empty-state"><div class="icon">&#128203;</div><p>No transactions for this date</p></div>';
+        document.getElementById('transCount').textContent = '0';
+        document.getElementById('transTotal').textContent = '&#8369;0';
+        document.getElementById('transCredit').textContent = '&#8369;0';
+        return;
+    }
+
+    const totalSales = data.filter(t => !t.void).reduce((s, t) => s + t.total, 0);
+    const totalCredit = data.filter(t => !t.void).reduce((s, t) => s + t.credit, 0);
+    
+    document.getElementById('transCount').textContent = data.filter(t => !t.void).length;
+    document.getElementById('transTotal').textContent = fmt(totalSales);
+    document.getElementById('transCredit').textContent = fmt(totalCredit);
+
+    document.getElementById('transList').innerHTML = data.map((t, i) => `
+        <div class="list-item" onclick="showDetail(${t.id})" style="margin-bottom:6px; ${t.void ? 'opacity:0.5;' : ''} border-left: 3px solid ${t.credit > 0 ? 'var(--red)' : 'var(--green)'};">
+            <div class="list-item-info">
+                <div class="list-item-name">
+                    <span class="text-muted text-sm">#${t.id}</span> ${t.customer}
+                    ${t.void ? '<span class="badge-red list-item-badge">VOID</span>' : ''}
+                </div>
+                <div class="list-item-sub">
+                    ${t.time} &bull; ${t.method}
+                    ${t.credit > 0 ? ' &bull; <span class="text-red">Credit: ' + fmt(t.credit) + '</span>' : ''}
+                </div>
+            </div>
+            <div class="list-item-right">
+                <div class="list-item-price text-lg">${fmt(t.total)}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function showDetail(transId) {
+    const data = await apiFetch('/api/transaction/' + transId);
+    if (data.error) { showToast('Error loading', true); return; }
+
+    const s = data.settings || {};
+    let h = '';
+    
+    h += `<div class="receipt" id="receiptPrint">`;
+    h += `<div class="receipt-header">`;
+    h += `<strong>${s.business_name || 'Agent POS'}</strong><br>`;
+    if (s.business_address) h += `${s.business_address}<br>`;
+    if (s.business_phone) h += `${s.business_phone}<br>`;
+    h += `<br>Transaction #${data.id}<br>${data.date}`;
+    h += `</div>`;
+    if (data.customerName) h += `Customer: ${data.customerName}<br>`;
+    h += `<div class="receipt-divider"></div>`;
+
+    // Items grouped
+    const discItems = data.items.filter(i => i.discountable);
+    const nonDiscItems = data.items.filter(i => !i.discountable);
+    
+    if (discItems.length) {
+        discItems.forEach(item => {
+            h += `<div>${item.name}</div>`;
+            h += `<div class="receipt-line"><span>&nbsp;&nbsp;${item.qty} &times; ${fmtN(item.price)}</span><span>${fmtN(item.lineTotal)}</span></div>`;
+        });
+    }
+    if (nonDiscItems.length) {
+        h += `<div style="font-size:0.7rem;margin-top:4px;">--- Non-Discountable ---</div>`;
+        nonDiscItems.forEach(item => {
+            h += `<div>${item.name}</div>`;
+            h += `<div class="receipt-line"><span>&nbsp;&nbsp;${item.qty} &times; ${fmtN(item.price)}</span><span>${fmtN(item.lineTotal)}</span></div>`;
+        });
+    }
+
+    h += `<div class="receipt-divider"></div>`;
+    h += `<div class="receipt-line"><span>Subtotal</span><span>${fmtN(data.subTotal)}</span></div>`;
+    if (data.discountAmount > 0) {
+        h += `<div class="receipt-line"><span>Discount (${data.discountPercent.toFixed(2)}%)</span><span>-${fmtN(data.discountAmount)}</span></div>`;
+    }
+    h += `<div class="receipt-line receipt-total"><span>Total</span><span>${fmtN(data.total)}</span></div>`;
+    if (data.previousBalance > 0) {
+        h += `<div class="receipt-line"><span>Previous Balance</span><span>${fmtN(data.previousBalance)}</span></div>`;
+        h += `<div class="receipt-line receipt-total"><span>Grand Total</span><span>${fmtN(data.grandTotal)}</span></div>`;
+    }
+    h += `<div class="receipt-divider"></div>`;
+    if (data.cash > 0) h += `<div class="receipt-line"><span>Cash</span><span>${fmtN(data.cash)}</span></div>`;
+    if (data.cheque > 0) h += `<div class="receipt-line"><span>Cheque ${data.chequeNumber}</span><span>${fmtN(data.cheque)}</span></div>`;
+    if (data.gcash > 0) h += `<div class="receipt-line"><span>GCash ${data.gcashRef}</span><span>${fmtN(data.gcash)}</span></div>`;
+    if (data.credit > 0) h += `<div class="receipt-line"><span>Credit</span><span>${fmtN(data.credit)}</span></div>`;
+    if (data.change > 0) h += `<div class="receipt-line"><span>Change</span><span>${fmtN(data.change)}</span></div>`;
+    if (data.notes) h += `<br>Notes: ${data.notes}`;
+    h += `</div>`;
+
+    document.getElementById('detailContent').innerHTML = h;
+    document.getElementById('printReceiptBtn').href = '/print/receipt/' + transId;
+    document.getElementById('detailModal').classList.add('active');
+}
+
+async function shareReceipt() {
+    const text = document.getElementById('receiptPrint').innerText;
+    if (navigator.share) {
+        try { await navigator.share({ title: 'Receipt', text }); return; } catch(e) {}
+    }
+    try {
+        await navigator.clipboard.writeText(text);
+        showToast('&#128203; Receipt copied to clipboard!');
+    } catch(e) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showToast('&#128203; Receipt copied to clipboard!');
+    }
+}
+
+loadData();
+// Auto-refresh every 30 seconds
+setInterval(loadData, 30000);
+
+function printPage(){
+    const content = document.querySelector('.content') || document.body;
+    const w = window.open('','_blank');
+    w.document.write('<html><head><title>Print</title><style>body{font-family:sans-serif;font-size:12px;padding:15px;color:#000;}.topbar,.version-bar,.footer-bar,.btn,.modal-overlay,.float-btn{display:none!important;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:4px 6px;}@media print{body{margin:0;}}</style></head><body>'+content.innerHTML+'</body></html>');
+    w.document.close();w.focus();
+    setTimeout(function(){w.print();w.close();},400);
+}
+</script>
+{% endblock %}

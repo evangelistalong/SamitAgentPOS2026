@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% block title %}Daily Summary{% endblock %}
+{% block body %}
+<div class="topbar">
+    <a href="/" class="topbar-back">‹</a>
+    <h1>📊 Daily Summary</h1>
+    <input type="date" id="dateSelect" value="{{ today }}" max="{{ today }}" style="background:transparent;border:none;color:var(--accent);font-size:0.85rem;" onchange="loadData()">
+<button onclick="printPage()" style="position:fixed;top:8px;right:12px;z-index:100;background:none;border:none;color:#fff;font-size:1.1rem;cursor:pointer;">&#128438;</button>
+</div>
+<div class="content" id="summaryContent">
+    <div class="text-center text-muted" style="padding:40px;">Loading...</div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+async function loadData() {
+    const date = document.getElementById('dateSelect').value;
+    const data = await apiFetch('/api/summary?date=' + date);
+    if (data.error) { document.getElementById('summaryContent').innerHTML = '<div class="text-center text-red">Error</div>'; return; }
+    render(data);
+}
+
+function render(d) {
+    const s = d.sales;
+    let html = '';
+
+    // Sales banner
+    html += `<div class="card" style="background: linear-gradient(135deg, var(--accent), var(--accent2)); text-align:center; margin-bottom:16px;">`;
+    html += `<div style="color:#000;opacity:0.7;font-size:0.85rem;">Net Sales</div>`;
+    html += `<div style="color:#000;font-size:2rem;font-weight:700;">${fmt(s.net)}</div>`;
+    html += `<div style="color:#000;opacity:0.7;font-size:0.8rem;">${s.count} transactions • ${d.date}</div>`;
+    html += `</div>`;
+
+    // Sales breakdown
+    html += `<div class="card grid-2 mb-4">`;
+    html += `<div class="stat"><div class="stat-value text-sm">${fmt(s.gross)}</div><div class="stat-label">Gross Sales</div></div>`;
+    html += `<div class="stat"><div class="stat-value text-sm stat-red">${fmt(s.discount)}</div><div class="stat-label">Discounts</div></div>`;
+    html += `</div>`;
+
+    // Payment methods
+    html += `<div class="card mb-4"><div class="card-title">Payment Breakdown</div>`;
+    html += `<div class="flex-between text-sm mb-2"><span>💵 Cash</span><span>${fmt(s.cash)}</span></div>`;
+    html += `<div class="flex-between text-sm mb-2"><span>📝 Cheques</span><span>${fmt(s.cheque)}</span></div>`;
+    html += `<div class="flex-between text-sm mb-2"><span>📱 GCash</span><span>${fmt(s.gcash)}</span></div>`;
+    html += `<div class="flex-between text-sm mb-2"><span>🏦 Credit</span><span class="text-red">${fmt(s.credit)}</span></div>`;
+    html += `</div>`;
+
+    // Collections
+    html += `<div class="card mb-4"><div class="card-title">Collections</div>`;
+    html += `<div class="flex-between"><span>${d.collections.count} collections</span><span class="text-green fw-bold">${fmt(d.collections.total)}</span></div>`;
+    html += `</div>`;
+
+    // Load
+    html += `<div class="card mb-4"><div class="card-title">Load Summary</div>`;
+    html += `<div class="grid-3">`;
+    html += `<div class="stat"><div class="stat-value text-sm">${d.load.loaded}</div><div class="stat-label">Loaded</div></div>`;
+    html += `<div class="stat"><div class="stat-value text-sm stat-red">${d.load.returned}</div><div class="stat-label">Returned</div></div>`;
+    html += `<div class="stat"><div class="stat-value text-sm stat-green">${d.load.sold}</div><div class="stat-label">Sold</div></div>`;
+    html += `</div></div>`;
+
+    // Remittances
+    if (d.remittances.length) {
+        html += `<div class="card mb-4"><div class="card-title">Remittances</div>`;
+        d.remittances.forEach(r => {
+            html += `<div class="flex-between text-sm mb-2">`;
+            html += `<span>Remittance #${r.no}</span>`;
+            html += `<span>${fmt(r.total)} <span class="${r.diff >= 0 ? 'text-green' : 'text-red'}">(${r.diff >= 0 ? '+' : ''}${fmt(r.diff)})</span></span>`;
+            html += `</div>`;
+        });
+        html += `</div>`;
+    }
+
+    // Commission
+    html += `<div class="card mb-4"><div class="card-title">Commission</div>`;
+    html += `<div class="flex-between"><span>Commission-eligible Sales</span><span class="text-accent">${fmt(d.commissionSales)}</span></div>`;
+    html += `</div>`;
+
+    // By Customer
+    if (d.byCustomer && d.byCustomer.length) {
+        html += `<div class="card mb-4"><div class="card-title">By Customer</div>`;
+        d.byCustomer.forEach(c => {
+            html += `<div class="flex-between text-sm mb-2">`;
+            html += `<span>${c.name} <span class="text-muted">(${c.count})</span></span>`;
+            html += `<span>${fmt(c.sales)}${c.credit > 0 ? ' <span class=text-red>CR:' + fmt(c.credit) + '</span>' : ''}</span>`;
+            html += `</div>`;
+        });
+        html += `</div>`;
+    }
+
+    document.getElementById('summaryContent').innerHTML = html;
+}
+
+loadData();
+
+function printPage(){
+    const content = document.querySelector('.content') || document.body;
+    const w = window.open('','_blank');
+    w.document.write('<html><head><title>Print</title><style>body{font-family:sans-serif;font-size:12px;padding:15px;color:#000;}.topbar,.version-bar,.footer-bar,.btn,.modal-overlay,.float-btn{display:none!important;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:4px 6px;}@media print{body{margin:0;}}</style></head><body>'+content.innerHTML+'</body></html>');
+    w.document.close();w.focus();
+    setTimeout(function(){w.print();w.close();},400);
+}
+</script>
+{% endblock %}

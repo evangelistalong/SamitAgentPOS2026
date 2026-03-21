@@ -45,6 +45,7 @@
         .version-bar{text-align:center;font-size:0.68rem;color:var(--text2);padding:4px 0 2px}
         .footer-bar{text-align:center;font-size:0.65rem;color:var(--text2);padding:12px 0 20px;opacity:0.5}
     </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 <div class="version-bar" id="versionBar">v&#8203;</div>
@@ -222,9 +223,12 @@
         <div class="modal-title">&#x1f9fe; Receipt</div>
         <div id="receiptTxId" style="text-align:center;font-size:0.75rem;color:var(--text2);margin-bottom:8px;font-family:monospace;letter-spacing:0.05em;"></div>
         <div id="receiptContent" style="max-height:55vh;overflow-y:auto;"></div>
-        <div class="grid-2 mt-4">
-            <button class="btn btn-secondary" onclick="document.getElementById('receiptModal').classList.remove('active')">Done</button>
-            <button class="btn btn-primary" onclick="shareReceipt()">&#128228; Share</button>
+        <!-- Share / Download / Print -->
+        <div style="display:flex;gap:6px;margin-top:10px;">
+            <button onclick="shareReceipt()" style="flex:1;padding:9px 4px;background:rgba(74,222,128,0.15);border:1px solid rgba(74,222,128,0.3);border-radius:8px;color:var(--green);font-size:0.76rem;font-weight:600;cursor:pointer;">&#128279; Share</button>
+            <button onclick="downloadReceiptImage()" style="flex:1;padding:9px 4px;background:rgba(96,165,250,0.15);border:1px solid rgba(96,165,250,0.3);border-radius:8px;color:var(--blue);font-size:0.76rem;font-weight:600;cursor:pointer;">&#128247; Image</button>
+            <button onclick="printReceipt()" style="flex:1;padding:9px 4px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:var(--text);font-size:0.76rem;font-weight:600;cursor:pointer;">&#128438; Print</button>
+            <button onclick="document.getElementById('receiptModal').classList.remove('active')" style="flex:1;padding:9px 4px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:var(--text2);font-size:0.76rem;font-weight:600;cursor:pointer;">&#10004; Done</button>
         </div>
         <button class="photo-btn" id="receiptPhotoBtn" onclick="takeReceiptPhoto()">&#128247; Take Photo of Receipt</button>
     </div>
@@ -730,6 +734,160 @@ async function showHistory(){
         :data.map(t=>`<div class="list-item" style="margin-bottom:4px;"><div class="list-item-info"><div class="list-item-name">${t.txId} \u2014 ${t.customerName}</div><div class="list-item-sub">${t.timestamp} \u2022 ${t.method}</div></div><div class="list-item-right"><div class="list-item-price">${fmt(t.total)}</div></div></div>`).join('');
     document.getElementById('historyModal').classList.add('active');
 }
+// ── GEMINI AI INVOICE VERIFICATION ───────────────────────────
+const GEMINI_KEY = 'AIzaSyDwwT1QbaTLWl6Jv9BqceAN_Dxmnvpra8I';
+let _invoiceBase64 = null;
+
+async function attachInvoicePhoto() {
+    const btn = document.getElementById('invoicePhotoBtn');
+    const statusEl = document.getElementById('invoiceStatus');
+    btn.disabled = true;
+    btn.textContent = '\u23f3 Opening camera...';
+
+    const b64 = await new Promise(resolve => {
+        const input = document.createElement('input');
+        input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment';
+        let settled = false;
+        function done(val) { if (!settled) { settled = true; resolve(val); } }
+        function onFocus() { setTimeout(() => { if (!settled) done(null); }, 600); }
+        window.addEventListener('focus', onFocus, {once: true});
+        input.onchange = e => {
+            window.removeEventListener('focus', onFocus);
+            const file = e.target.files[0];
+            if (!file) { done(null); return; }
+            const reader = new FileReader();
+            reader.onload = ev => done(ev.target.result.split(',')[1]);
+            reader.readAsDataURL(file);
+        };
+        input.click();
+    });
+
+    if (!b64) {
+        btn.disabled = false;
+        btn.innerHTML = '&#128247; Attach Paper Invoice + AI Verify';
+        return;
+    }
+
+    _invoiceBase64 = b64;
+    btn.textContent = '\u23f3 Uploading + analyzing...';
+    statusEl.style.display = 'none';
+
+    // Upload to Drive
+    const today = new Date().toISOString().slice(0,10);
+    const custName = selCustomer ? selCustomer.name.replace(/\s+/g,'_') : 'WalkIn';
+    const fname = 'INVOICE_' + CONFIG.AGENT_NAME + '_' + custName + '_' + today + '.jpg';
+    try {
+        await fetch(CONFIG.PROXY_URL || CONFIG.APPS_SCRIPT_URL, {
+            method: 'POST', headers: {'Content-Type': 'text/plain'},
+            body: JSON.stringify({action:'photo_upload', imageData:b64, filename:fname, label:'Paper Invoice'})
+        });
+    } catch(e) { console.warn('Drive upload failed:', e); }
+
+    // Gemini verify
+    await verifyWithGemini(b64);
+    btn.disabled = false;
+    btn.innerHTML = '&#9989; Invoice attached \u2014 tap to retake';
+}
+
+async function verifyWithGemini(base64) {
+    const statusEl = document.getElementById('invoiceStatus');
+    statusEl.style.display = 'block';
+    statusEl.style.background = 'rgba(255,255,255,0.05)';
+    statusEl.style.border = '1px solid var(--border)';
+    statusEl.innerHTML = '\u23f3 Gemini AI reading invoice...';
+
+    const cartSummary = cart.map(c => `- ${c.name} x${c.qty} @ \u20b1${c.price.toFixed(2)} = \u20b1${(c.qty*c.price).toFixed(2)}`).join('\n');
+    const cartTotal = getCartTotal().toFixed(2);
+    const discPct = ((1 - discMultiplier()) * 100).toFixed(2);
+
+    const prompt = `You are verifying a sales invoice for a meat product delivery agent in the Philippines.
+
+DIGITAL CART (what the app recorded):
+${cartSummary}
+Discount: ${discPct}%
+Total: \u20b1${cartTotal}
+
+Read the handwritten/printed invoice in the image and:
+1. List items, quantities, prices from the invoice
+2. Compare to the digital cart
+3. Flag discrepancies (wrong qty, price, missing/extra items)
+4. Verdict: MATCH or MISMATCH
+
+Format:
+VERDICT: MATCH \u2705 or MISMATCH \u26a0\ufe0f
+FINDINGS: (brief bullets)`;
+
+    try {
+        const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({contents:[{parts:[{text:prompt},{inline_data:{mime_type:'image/jpeg',data:base64}}]}]})
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error?.message || 'Gemini error');
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response';
+        const isMatch = text.includes('MATCH') && !text.includes('MISMATCH');
+        statusEl.style.background = isMatch ? 'rgba(74,222,128,0.1)' : 'rgba(239,68,68,0.1)';
+        statusEl.style.border = isMatch ? '1px solid rgba(74,222,128,0.3)' : '1px solid rgba(239,68,68,0.4)';
+        statusEl.innerHTML = text.replace(/\n/g,'<br>')
+            .replace('MATCH \u2705','<strong style="color:var(--green)">MATCH \u2705</strong>')
+            .replace('MISMATCH \u26a0\ufe0f','<strong style="color:var(--red)">MISMATCH \u26a0\ufe0f</strong>');
+    } catch(e) {
+        statusEl.style.background = 'rgba(239,68,68,0.1)';
+        statusEl.style.border = '1px solid rgba(239,68,68,0.3)';
+        statusEl.innerHTML = '\u274c AI verification failed: ' + e.message;
+    }
+}
+
+// ── RECEIPT SHARING ───────────────────────────────────────────
+async function shareReceipt() {
+    const receiptEl = document.getElementById('receiptContent');
+    if (!receiptEl) return;
+    const text = receiptEl.innerText;
+    const txId = document.getElementById('receiptTxId')?.textContent || '';
+
+    // Try native share first (mobile)
+    if (navigator.share) {
+        try {
+            await navigator.share({ title: 'Samit Agent POS Receipt', text: txId + '\n\n' + text });
+            return;
+        } catch(e) { if (e.name !== 'AbortError') console.warn(e); }
+    }
+    // Fallback: copy to clipboard
+    try {
+        await navigator.clipboard.writeText(txId + '\n\n' + text);
+        showToast('\u2705 Receipt copied to clipboard');
+    } catch(e) { showToast('Share not supported on this device', true); }
+}
+
+async function downloadReceiptImage() {
+    const el = document.getElementById('receiptPrint');
+    if (!el) { showToast('Print receipt first', true); return; }
+    // Use html2canvas if loaded, else fallback
+    if (typeof html2canvas !== 'undefined') {
+        const canvas = await html2canvas(el, {backgroundColor:'#fff', scale:2});
+        const link = document.createElement('a');
+        link.download = 'receipt-' + Date.now() + '.jpg';
+        link.href = canvas.toDataURL('image/jpeg', 0.9);
+        link.click();
+    } else {
+        showToast('Download not available', true);
+    }
+}
+
+function printReceipt() {
+    const el = document.getElementById('receiptPrint');
+    if (!el) return;
+    const w = window.open('', '_blank');
+    w.document.write(`<html><head><title>Receipt</title><style>
+        body{font-family:monospace;font-size:12px;padding:10px;max-width:300px;}
+        @media print{body{margin:0;}}
+    </style><script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head><body>${el.innerHTML}</body></html>`);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { w.print(); w.close(); }, 300);
+}
+
 async function capturePhoto(label,filename){
     return new Promise(resolve=>{
         const input=document.createElement('input');input.type='file';input.accept='image/*';input.capture='environment';

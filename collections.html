@@ -1,30 +1,20 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#1a5c2e">
-    <title>Collections</title>
-    <link rel="stylesheet" href="base.css">
-</head>
-<body>
+{% extends 'base.html' %}
+{% block title %}Collections{% endblock %}
+{% block body %}
 <div class="topbar">
-    <a href="index.html" class="topbar-back">‹</a>
+    <a href="/" class="topbar-back">‹</a>
     <h1>💰 Collections</h1>
-    <span class="topbar-action"></span>
+    <span class="topbar-action text-sm"><a href="/print/summary" target="_blank" style="text-decoration:none;background:rgba(255,255,255,0.15);padding:4px 10px;border-radius:8px;color:#fff;font-size:0.85rem;">&#9113; Print</a></span>
 </div>
-
 <div class="content">
     <!-- New Collection Form -->
     <div class="card mb-4">
         <div class="card-title">Record Collection</div>
         <div class="input-group">
             <label>Customer</label>
-            <input type="text" class="input-field" id="custSearch" placeholder="Search customer..." oninput="filterCust()" autocomplete="off">
+            <input type="text" class="input-field" id="custSearch" placeholder="Search customer..." oninput="filterCust()">
         </div>
-        <div id="custList" class="hidden" style="max-height:150px;overflow-y:auto;margin-bottom:12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);"></div>
+        <div id="custList" class="hidden" style="max-height:150px; overflow-y:auto; margin-bottom:12px;"></div>
         <div id="custSelected" class="hidden card mb-2" style="background:var(--bg);">
             <div class="flex-between">
                 <div><span class="fw-bold" id="selCustName"></span></div>
@@ -32,13 +22,13 @@
             </div>
             <div class="text-red mt-2" id="balDisplay">
                 Balance: <span id="selCustBal">₱0.00</span>
-                <button onclick="editBalance()" style="background:none;border:none;color:var(--accent);font-size:0.85rem;cursor:pointer;margin-left:8px;">✏️ Edit</button>
+                <button onclick="editBalance()" style="background:none; border:none; color:var(--accent); font-size:0.85rem; cursor:pointer; margin-left:8px;">✏️ Edit</button>
             </div>
             <div id="balEdit" class="hidden mt-2">
-                <div style="display:flex;align-items:center;gap:8px;">
+                <div style="display:flex; align-items:center; gap:8px;">
                     <label class="text-sm text-muted" style="white-space:nowrap;">Balance:</label>
                     <input type="number" class="input-field" id="balEditInput" step="0.01" style="flex:1;">
-                    <button class="btn btn-sm btn-primary" onclick="saveBalance()" style="padding:6px 12px;white-space:nowrap;">Save</button>
+                    <button class="btn btn-sm btn-primary" onclick="saveBalance()" style="padding:6px 12px; white-space:nowrap;">Save</button>
                     <button class="btn btn-sm btn-outline" onclick="cancelEditBalance()" style="padding:6px 10px;">✕</button>
                 </div>
             </div>
@@ -46,7 +36,7 @@
 
         <div class="input-group">
             <label>Amount</label>
-            <input type="number" class="input-field" id="collAmount" step="0.01" placeholder="0.00" inputmode="decimal">
+            <input type="number" class="input-field" id="collAmount" step="0.01" placeholder="0.00">
         </div>
 
         <div class="card-title">Payment Method</div>
@@ -78,18 +68,16 @@
         </div>
     </div>
 </div>
-
-<script src="config.js"></script>
-<script src="sheets.js"></script>
-<script src="base.js"></script>
+{% endblock %}
+{% block extra_js %}
 <script>
 let customers = [];
 let selCust = null;
 let method = 'Cash';
 
 async function init() {
-    customers = await Sheets.getCustomers();
-    if (!customers.length) showToast('Could not load customers', true);
+    customers = await apiFetch('/api/customers');
+    if (customers.error) customers = [];
     loadCollections();
 }
 
@@ -97,17 +85,17 @@ function filterCust() {
     const q = document.getElementById('custSearch').value.toLowerCase();
     if (q.length < 2) { document.getElementById('custList').classList.add('hidden'); return; }
     const filtered = customers.filter(c => c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q)).slice(0, 10);
-    if (!filtered.length) { document.getElementById('custList').classList.add('hidden'); return; }
     document.getElementById('custList').innerHTML = filtered.map(c => `
         <div class="list-item" onclick="selectCust('${c.code}','${c.name.replace(/'/g,"\\'")}',${c.balance})" style="padding:8px 12px;margin-bottom:4px;">
             <div class="list-item-info"><div class="list-item-name" style="font-size:0.85rem;">${c.name}</div></div>
             <span class="text-red text-sm">${c.balance > 0 ? fmt(c.balance) : ''}</span>
-        </div>`).join('');
+        </div>
+    `).join('');
     document.getElementById('custList').classList.remove('hidden');
 }
 
 function selectCust(code, name, bal) {
-    selCust = { code, name, balance: bal };
+    selCust = {code, name, balance: bal};
     document.getElementById('custSearch').classList.add('hidden');
     document.getElementById('custList').classList.add('hidden');
     document.getElementById('custSelected').classList.remove('hidden');
@@ -131,20 +119,20 @@ function cancelEditBalance() {
 
 async function saveBalance() {
     const newBal = parseFloat(document.getElementById('balEditInput').value) || 0;
-    const result = await Sheets.writeRows('balance_adjust', {
+    const result = await apiPost('/api/balances/adjust', {
         customerCode: selCust.code,
         customerName: selCust.name,
         balance: newBal
     });
-    if (result.success || result.offline) {
+    if (result.success) {
         selCust.balance = newBal;
         document.getElementById('selCustBal').textContent = fmt(newBal);
         cancelEditBalance();
         showToast('Balance updated to ' + fmt(newBal));
-        Cache.clear('customers');
-        customers = await Sheets.getCustomers();
+        // Refresh customer list
+        customers = await apiFetch('/api/customers');
     } else {
-        showToast('Error saving balance', true);
+        showToast('Error: ' + (result.error || 'Failed'), true);
     }
 }
 
@@ -159,7 +147,7 @@ function clearCust() {
 
 function setMethod(m) {
     method = m;
-    ['Cash', 'Cheque', 'GCash'].forEach(x => {
+    ['Cash','Cheque','GCash'].forEach(x => {
         document.getElementById('m' + x).className = 'btn btn-sm ' + (x === m ? 'btn-primary' : 'btn-outline');
     });
     document.getElementById('chequeFields').classList.toggle('hidden', m !== 'Cheque');
@@ -171,7 +159,7 @@ async function submitCollection() {
     const amt = parseFloat(document.getElementById('collAmount').value);
     if (!amt || amt <= 0) { showToast('Enter amount', true); return; }
 
-    const payload = {
+    const result = await apiPost('/api/collections', {
         customerCode: selCust.code,
         customerName: selCust.name,
         amount: amt,
@@ -180,27 +168,23 @@ async function submitCollection() {
         gcashRef: document.getElementById('gcashRef').value,
         notes: document.getElementById('collNotes').value,
         remittanceNo: 1
-    };
+    });
 
-    const result = await Sheets.postCollection(payload);
-    if (result.success || result.offline) {
-        showToast(result.offline ? '📱 Saved offline' : 'Collection recorded! ✅');
+    if (result.success) {
+        showToast('Collection recorded! New balance: ' + fmt(result.newBalance));
         clearCust();
         document.getElementById('collAmount').value = '';
         document.getElementById('collNotes').value = '';
-        document.getElementById('chequeNum').value = '';
-        document.getElementById('gcashRef').value = '';
-        Cache.clear('customers');
-        customers = await Sheets.getCustomers();
+        customers = await apiFetch('/api/customers');
         loadCollections();
     } else {
-        showToast('Error: ' + (result.error || 'Failed'), true);
+        showToast('Error: ' + result.error, true);
     }
 }
 
 async function loadCollections() {
-    const data = await Sheets.getTodayCollections();
-    if (!data || !data.length) {
+    const data = await apiFetch('/api/collections?date={{ today }}');
+    if (data.error || !data.length) {
         document.getElementById('collList').innerHTML = '<div class="text-center text-muted" style="padding:20px;">No collections yet</div>';
         document.getElementById('totalCollected').textContent = '₱0.00';
         return;
@@ -209,14 +193,22 @@ async function loadCollections() {
         <div class="list-item" style="margin-bottom:4px;">
             <div class="list-item-info">
                 <div class="list-item-name" style="font-size:0.85rem;">${c.customerName}</div>
-                <div class="list-item-sub">${c.timestamp || ''} • ${c.method}</div>
+                <div class="list-item-sub">${c.date} • ${c.method}</div>
             </div>
             <div class="list-item-price">${fmt(c.amount)}</div>
-        </div>`).join('');
+        </div>
+    `).join('');
     document.getElementById('totalCollected').textContent = fmt(data.reduce((s, c) => s + c.amount, 0));
 }
 
 init();
+
+function printPage(){
+    const content = document.querySelector('.content') || document.body;
+    const w = window.open('','_blank');
+    w.document.write('<html><head><title>Print</title><style>body{font-family:sans-serif;font-size:12px;padding:15px;color:#000;}.topbar,.version-bar,.footer-bar,.btn,.modal-overlay,.float-btn{display:none!important;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:4px 6px;}@media print{body{margin:0;}}</style></head><body>'+content.innerHTML+'</body></html>');
+    w.document.close();w.focus();
+    setTimeout(function(){w.print();w.close();},400);
+}
 </script>
-</body>
-</html>
+{% endblock %}

@@ -1,50 +1,31 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#1a5c2e">
-    <title>Remittance</title>
-    <link rel="stylesheet" href="base.css">
-</head>
-<body>
+{% extends 'base.html' %}
+{% block title %}Remittance{% endblock %}
+{% block body %}
 <div class="topbar">
-    <a href="index.html" class="topbar-back">‹</a>
+    <a href="/" class="topbar-back">‹</a>
     <h1>💼 Remittance</h1>
-    <span class="topbar-action"></span>
+    <span class="topbar-action text-sm"><a href="/print/remittance" target="_blank" style="text-decoration:none;background:rgba(255,255,255,0.15);padding:4px 10px;border-radius:8px;color:#fff;font-size:0.85rem;">&#9113; Print</a></span>
 </div>
-
 <div class="content">
-    <div id="remContent">
-        <div class="text-center text-muted" style="padding:40px;">
-            <div style="font-size:2rem;margin-bottom:8px;">⏳</div>
-            <div>Loading remittance data...</div>
-        </div>
-    </div>
+    <div id="remContent"></div>
 </div>
-
-<script src="config.js"></script>
-<script src="sheets.js"></script>
-<script src="base.js"></script>
+{% endblock %}
+{% block extra_js %}
 <script>
 async function loadData() {
-    const data = await Sheets.getRemittanceData();
-    if (!data) {
-        document.getElementById('remContent').innerHTML = '<div class="text-center text-red" style="padding:20px;">Error loading data</div>';
-        return;
-    }
+    const data = await apiFetch('/api/remittance?date={{ today }}');
+    if (data.error) { document.getElementById('remContent').innerHTML = '<div class="text-center text-red">Error loading</div>'; return; }
     render(data);
 }
 
 function render(data) {
     let html = '';
+
+    // Remittance 1
     const r1 = data.remittances.find(r => r.no === 1);
     const e1 = data.expected1;
 
-    // ── Remittance 1 ──
-    html += `<div class="card mb-4" style="border-left:3px solid var(--accent);">`;
+    html += `<div class="card mb-4" style="border-left: 3px solid var(--accent);">`;
     html += `<div class="flex-between mb-2"><span class="fw-bold text-lg">💼 Remittance #1</span>`;
     if (r1) html += `<span class="badge-green list-item-badge">✅ Submitted</span>`;
     html += `</div>`;
@@ -60,39 +41,33 @@ function render(data) {
         html += `<div class="flex-between text-sm"><span>Difference</span><span class="${r1.diff >= 0 ? 'text-green' : 'text-red'}">${fmt(r1.diff)}</span></div>`;
     } else {
         html += `<div class="divider"></div>`;
-        html += `<div class="input-group mt-2"><label>Cash</label><input type="number" class="input-field" id="r1Cash" step="0.01" inputmode="decimal" value="${e1.cash.toFixed(2)}"></div>`;
-        html += `<div class="input-group"><label>Cheques</label><input type="number" class="input-field" id="r1Cheque" step="0.01" inputmode="decimal" value="${e1.cheque.toFixed(2)}"></div>`;
-        html += `<div class="input-group"><label>GCash</label><input type="number" class="input-field" id="r1GCash" step="0.01" inputmode="decimal" value="${e1.gcash.toFixed(2)}"></div>`;
+        html += `<div class="input-group mt-2"><label>Cash</label><input type="number" class="input-field" id="r1Cash" step="0.01" value="${e1.cash.toFixed(2)}"></div>`;
+        html += `<div class="input-group"><label>Cheques</label><input type="number" class="input-field" id="r1Cheque" step="0.01" value="${e1.cheque.toFixed(2)}"></div>`;
+        html += `<div class="input-group"><label>GCash</label><input type="number" class="input-field" id="r1GCash" step="0.01" value="${e1.gcash.toFixed(2)}"></div>`;
         html += `<div class="input-group"><label>Notes</label><input type="text" class="input-field" id="r1Notes"></div>`;
-        html += `<button class="btn btn-success mt-2" onclick="submitRem(1,${e1.total})">✅ Submit Remittance #1</button>`;
+        html += `<button class="btn btn-success mt-2" onclick="submitRem(1, ${e1.total})">✅ Submit Remittance #1</button>`;
     }
     html += `</div>`;
 
-    // ── Remittance 2 ──
+    // Remittance 2
     const r2 = data.remittances.find(r => r.no === 2);
     const e2 = data.expected2;
 
-    html += `<div class="card mb-4" style="border-left:3px solid var(--purple);">`;
+    html += `<div class="card mb-4" style="border-left: 3px solid var(--purple);">`;
     html += `<div class="flex-between mb-2"><span class="fw-bold text-lg">💼 Remittance #2</span>`;
     if (r2) html += `<span class="badge-green list-item-badge">✅ Submitted</span>`;
     html += `</div>`;
-    html += `<div class="flex-between text-sm mb-2"><span class="text-muted">Expected Cash</span><span>${fmt(e2.cash)}</span></div>`;
-    html += `<div class="flex-between text-sm mb-2"><span class="text-muted">Expected Cheques</span><span>${fmt(e2.cheque)}</span></div>`;
-    html += `<div class="flex-between text-sm mb-2"><span class="text-muted">Expected GCash</span><span>${fmt(e2.gcash)}</span></div>`;
-    html += `<div class="divider"></div>`;
-    html += `<div class="flex-between"><span class="fw-bold">Expected Total</span><span class="fw-bold text-accent">${fmt(e2.total)}</span></div>`;
+    html += `<div class="flex-between text-sm mb-2"><span class="text-muted">Expected</span><span class="text-accent">${fmt(e2.total)}</span></div>`;
 
     if (r2) {
-        html += `<div class="divider"></div>`;
         html += `<div class="flex-between text-sm"><span>Remitted</span><span class="text-green">${fmt(r2.total)}</span></div>`;
         html += `<div class="flex-between text-sm"><span>Difference</span><span class="${r2.diff >= 0 ? 'text-green' : 'text-red'}">${fmt(r2.diff)}</span></div>`;
     } else if (r1) {
-        html += `<div class="divider"></div>`;
-        html += `<div class="input-group mt-2"><label>Cash</label><input type="number" class="input-field" id="r2Cash" step="0.01" inputmode="decimal" value="${e2.cash.toFixed(2)}"></div>`;
-        html += `<div class="input-group"><label>Cheques</label><input type="number" class="input-field" id="r2Cheque" step="0.01" inputmode="decimal" value="${e2.cheque.toFixed(2)}"></div>`;
-        html += `<div class="input-group"><label>GCash</label><input type="number" class="input-field" id="r2GCash" step="0.01" inputmode="decimal" value="${e2.gcash.toFixed(2)}"></div>`;
+        html += `<div class="input-group mt-2"><label>Cash</label><input type="number" class="input-field" id="r2Cash" step="0.01" value="${e2.cash.toFixed(2)}"></div>`;
+        html += `<div class="input-group"><label>Cheques</label><input type="number" class="input-field" id="r2Cheque" step="0.01" value="${e2.cheque.toFixed(2)}"></div>`;
+        html += `<div class="input-group"><label>GCash</label><input type="number" class="input-field" id="r2GCash" step="0.01" value="${e2.gcash.toFixed(2)}"></div>`;
         html += `<div class="input-group"><label>Notes</label><input type="text" class="input-field" id="r2Notes"></div>`;
-        html += `<button class="btn btn-primary mt-2" onclick="submitRem(2,${e2.total})">💼 Submit Remittance #2</button>`;
+        html += `<button class="btn btn-primary mt-2" onclick="submitRem(2, ${e2.total})">💼 Submit Remittance #2</button>`;
     } else {
         html += `<div class="text-muted text-sm text-center" style="padding:16px;">Submit Remittance #1 first</div>`;
     }
@@ -102,28 +77,31 @@ function render(data) {
 }
 
 async function submitRem(no, expected) {
-    const cash   = parseFloat(document.getElementById('r' + no + 'Cash').value) || 0;
+    const cash = parseFloat(document.getElementById('r' + no + 'Cash').value) || 0;
     const cheque = parseFloat(document.getElementById('r' + no + 'Cheque').value) || 0;
-    const gcash  = parseFloat(document.getElementById('r' + no + 'GCash').value) || 0;
-    const notes  = document.getElementById('r' + no + 'Notes').value;
-    const total  = cash + cheque + gcash;
-    const diff   = total - expected;
+    const gcash = parseFloat(document.getElementById('r' + no + 'GCash').value) || 0;
+    const notes = document.getElementById('r' + no + 'Notes').value;
 
-    const result = await Sheets.postRemittance({
-        remittanceNo: no, cash, cheque, gcash, total, expected, difference: diff, notes
+    const result = await apiPost('/api/remittance', {
+        remittanceNo: no, cash, cheque, gcash, expected, notes
     });
 
-    if (result.success || result.offline) {
-        showToast(result.offline
-            ? '📱 Saved offline — will sync when connected'
-            : 'Remittance #' + no + ' submitted!');
+    if (result.success) {
+        showToast('Remittance #' + no + ' submitted!');
         loadData();
     } else {
-        showToast('Error: ' + (result.error || 'Failed'), true);
+        showToast('Error: ' + result.error, true);
     }
 }
 
 loadData();
+
+function printPage(){
+    const content = document.querySelector('.content') || document.body;
+    const w = window.open('','_blank');
+    w.document.write('<html><head><title>Print</title><style>body{font-family:sans-serif;font-size:12px;padding:15px;color:#000;}.topbar,.version-bar,.footer-bar,.btn,.modal-overlay,.float-btn{display:none!important;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:4px 6px;}@media print{body{margin:0;}}</style></head><body>'+content.innerHTML+'</body></html>');
+    w.document.close();w.focus();
+    setTimeout(function(){w.print();w.close();},400);
+}
 </script>
-</body>
-</html>
+{% endblock %}
