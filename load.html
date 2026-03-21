@@ -42,7 +42,7 @@
         .item-card:active{background:var(--load-bg3);}
         .item-card.already-loaded{opacity:0.5;cursor:not-allowed;}
         .item-card .ic-name{font-size:0.72rem;font-weight:600;line-height:1.3;margin-bottom:4px;min-height:2.6em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
-        .item-card .ic-price{font-size:0.8rem;font-weight:700;}
+        .item-card .ic-price{display:none;}
         .item-card .ic-badge{position:absolute;top:4px;right:4px;border-radius:50%;width:18px;height:18px;font-size:0.6rem;font-weight:700;display:flex;align-items:center;justify-content:center;}
         .float-load{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);border:none;border-radius:24px;padding:12px 28px;font-size:0.9rem;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.5);display:flex;align-items:center;gap:10px;z-index:100;}
         .float-load:active{transform:translateX(-50%) scale(0.96);}
@@ -79,7 +79,7 @@
         </div>
     </div>
     <div style="margin-bottom:8px;">
-        <input type="text" class="input-field" id="itemSearch" placeholder="&#128269; Search items to load..." oninput="filterGrid()" autocomplete="off" style="font-size:0.85rem;">
+        <input type="text" class="input-field" id="itemSearch" placeholder="&#128269;  Search items to load..." oninput="filterGrid()" autocomplete="off" style="font-size:0.9rem;padding:14px 16px;border:2px solid var(--load-accent);border-radius:12px;background:var(--load-bg2);color:var(--text);font-weight:500;">
     </div>
     <div class="cat-tabs" id="catTabs"></div>
     <div class="item-grid" id="itemGrid">
@@ -170,10 +170,10 @@ function renderGrid(){
         const onhand=item.onhand!==undefined?item.onhand:null;
         const stockLabel=onhand!==null
             ?(onhand<=0
-                ?'<div class="ic-stock" style="color:var(--red);">Out of stock</div>'
+                ?'<div class="ic-stock" style="color:var(--red);font-size:0.58rem;">Out of stock</div>'
                 :(onhand<=20
-                    ?'<div class="ic-stock" style="color:var(--accent);">'+onhand+' left</div>'
-                    :'<div class="ic-stock" style="color:var(--green);">'+onhand+' on hand</div>'))
+                    ?'<div class="ic-stock" style="color:var(--accent);font-size:0.58rem;">'+onhand+' left</div>'
+                    :'<div class="ic-stock" style="color:var(--green);font-size:0.58rem;">'+onhand+'</div>'))
             :'';
         const clickFn=alreadyLoaded&&!inCart
             ?'showToast(\'Already loaded\',true)'
@@ -182,7 +182,7 @@ function renderGrid(){
                 onclick="${clickFn}">
             ${inCart?'<span class="ic-badge">'+inCart.qty+'</span>':''}
             <div class="ic-name">${item.name}</div>
-            <div class="ic-price" style="font-size:0.72rem;color:var(--text2);">${fmt(item.wholesale||item.price)}</div>
+            
             ${stockLabel}
             ${alreadyLoaded&&!inCart?'<div style="font-size:0.6rem;color:var(--text2);">Loaded</div>':''}
         </div>`;
