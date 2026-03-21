@@ -201,6 +201,14 @@
             <div class="flex-between" id="remainingRow" style="display:none;"><span class="text-red">Remaining</span><span class="text-red fw-bold" id="payRemaining">&#8369;0</span></div>
         </div>
         <div class="input-group mt-3"><label>Notes</label><input type="text" class="input-field" id="payNotes" placeholder="Optional"></div>
+        <!-- Invoice photo + AI check -->
+        <div id="invoiceSection" style="margin-top:10px;">
+            <button id="invoicePhotoBtn" onclick="attachInvoicePhoto()"
+                style="width:100%;padding:10px;background:rgba(167,139,250,0.15);border:1px dashed rgba(167,139,250,0.5);border-radius:8px;color:#a78bfa;font-size:0.82rem;font-weight:600;cursor:pointer;">
+                &#128247; Attach Paper Invoice + AI Verify
+            </button>
+            <div id="invoiceStatus" style="display:none;margin-top:8px;border-radius:8px;padding:10px;font-size:0.8rem;"></div>
+        </div>
         <div class="grid-2 mt-4">
             <button class="btn btn-secondary" onclick="document.getElementById('paymentModal').classList.remove('active')">Cancel</button>
             <button class="btn btn-success" id="completeBtn" onclick="completeSale()" disabled>&#x2705; Complete</button>
@@ -212,6 +220,7 @@
     <div class="modal">
         <div class="modal-handle"></div>
         <div class="modal-title">&#x1f9fe; Receipt</div>
+        <div id="receiptTxId" style="text-align:center;font-size:0.75rem;color:var(--text2);margin-bottom:8px;font-family:monospace;letter-spacing:0.05em;"></div>
         <div id="receiptContent" style="max-height:55vh;overflow-y:auto;"></div>
         <div class="grid-2 mt-4">
             <button class="btn btn-secondary" onclick="document.getElementById('receiptModal').classList.remove('active')">Done</button>
@@ -701,6 +710,9 @@ function showLocalReceipt(p){
     if(p.notes)html+=`<br>Notes: ${p.notes}`;
     html+=`<div class="receipt-divider"></div><div style="text-align:center;">Thank you!</div></div>`;
     document.getElementById('receiptContent').innerHTML=html;
+    // Show TxID prominently
+    const txEl=document.getElementById('receiptTxId');
+    if(txEl)txEl.textContent='Transaction ID: '+p.txId;
     document.getElementById('receiptPhotoBtn').disabled=false;
     document.getElementById('receiptPhotoBtn').innerHTML='&#128247; Take Photo of Receipt';
     document.getElementById('receiptModal').classList.add('active');
