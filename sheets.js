@@ -20,7 +20,7 @@ const Sheets = {
     },
 
     fmt(n) {
-        return '₱' + (n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return '\u20b1' + (n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     },
 
     // ── LOW-LEVEL SHEETS API ──────────────────────────────────
@@ -44,7 +44,7 @@ const Sheets = {
         try {
             const r = await fetch(CONFIG.APPS_SCRIPT_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'text/plain' }, // Apps Script requires text/plain for CORS
+                headers: { 'Content-Type': 'text/plain' },
                 body: JSON.stringify(body),
                 signal: AbortSignal.timeout(10000)
             });
@@ -54,7 +54,6 @@ const Sheets = {
         } catch (e) {
             console.warn('[Sheets.writeRows] Apps Script unreachable:', e.message);
         }
-        // Unreachable — queue offline
         return OfflineQueue.enqueue(action, body);
     },
 
@@ -99,12 +98,15 @@ const Sheets = {
         if (!rows || rows.length < 2) return [];
         const [headers, ...data] = rows;
         const h = headers.map(x => x.trim().toLowerCase());
+        const iOnHand = h.indexOf('onhand');  // NEW: OnHand from PBEST-POS
         const items = data.map(r => ({
             sku:          r[h.indexOf('sku')] || '',
             name:         r[h.indexOf('name')] || '',
             wholesale:    parseFloat(r[h.indexOf('wholesale')]) || 0,
             discountable: (r[h.indexOf('discountable')] || 'true').toLowerCase() !== 'false',
             commission:   parseFloat(r[h.indexOf('commission')]) || 0,
+            onhand:       iOnHand >= 0 ? (parseFloat(r[iOnHand]) || 0) : null,  // NEW
+            active:       (r[h.indexOf('active')] || 'Yes').toLowerCase() === 'yes',
         })).filter(i => i.sku);
         Cache.set('items', items, 30 * 60 * 1000);
         return items;
@@ -121,6 +123,7 @@ const Sheets = {
                 wholesale:    l.price || catalog.wholesale || 0,
                 discountable: catalog.discountable !== false,
                 commission:   catalog.commission || 0,
+                onhand:       catalog.onhand,   // NEW
                 remaining:    l.loadQty - l.soldQty,
             };
         }).filter(i => i.remaining > 0);
@@ -342,7 +345,7 @@ const OfflineQueue = {
                 if (result.success) { this.markSynced(item.id); ok++; }
             } catch(e) { /* stay queued */ }
         }
-        if (ok > 0) showToast('✅ Synced ' + ok + ' offline record' + (ok > 1 ? 's' : ''));
+        if (ok > 0) showToast('\u2705 Synced ' + ok + ' offline record' + (ok > 1 ? 's' : ''));
         this.updateBadge();
     }
 };
