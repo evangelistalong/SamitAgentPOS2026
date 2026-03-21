@@ -162,24 +162,24 @@ function renderGrid(){
     const el=document.getElementById('itemGrid');
     if(!items.length){el.innerHTML='<div class="text-center text-muted" style="grid-column:span 3;padding:30px 0;"><div style="font-size:2rem;">&#128269;</div><div>No items</div></div>';return;}
     const loadedSkus=new Set([...existingLoad.map(i=>i.sku),...loadCart.map(i=>i.sku)]);
-    el.innerHTML=items.map(item=>{
+    // Store items in a lookup array so onclick can use index
+    window._loadItems = items;
+    el.innerHTML=items.map((item,idx)=>{
         const alreadyLoaded=loadedSkus.has(item.sku);
         const inCart=loadCart.find(c=>c.sku===item.sku);
-        const safeJson=JSON.stringify(item).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
-        const clickHandler=alreadyLoaded&&!inCart
-            ? 'showToast(\'Already loaded\',true)'
-            : `openAddModal(JSON.parse(this.getAttribute('data-item').replace(/&quot;/g,'"')))`;
-        const onhand = item.onhand !== undefined ? item.onhand : null;
-        const stockLabel = onhand !== null
-            ? (onhand <= 0
-                ? '<div class="ic-stock" style="color:var(--red);">Out of stock</div>'
-                : (onhand <= 20
-                    ? '<div class="ic-stock" style="color:var(--accent);">'+onhand+' left</div>'
-                    : '<div class="ic-stock" style="color:var(--green);">'+onhand+' on hand</div>'))
-            : '';
+        const onhand=item.onhand!==undefined?item.onhand:null;
+        const stockLabel=onhand!==null
+            ?(onhand<=0
+                ?'<div class="ic-stock" style="color:var(--red);">Out of stock</div>'
+                :(onhand<=20
+                    ?'<div class="ic-stock" style="color:var(--accent);">'+onhand+' left</div>'
+                    :'<div class="ic-stock" style="color:var(--green);">'+onhand+' on hand</div>'))
+            :'';
+        const clickFn=alreadyLoaded&&!inCart
+            ?'showToast(\'Already loaded\',true)'
+            :'promptQty(window._loadItems['+idx+'])';
         return`<div class="item-card ${alreadyLoaded&&!inCart?'already-loaded':''} ${inCart?'in-cart':''}"
-                data-item="${safeJson}"
-                onclick="${clickHandler}">
+                onclick="${clickFn}">
             ${inCart?'<span class="ic-badge">'+inCart.qty+'</span>':''}
             <div class="ic-name">${item.name}</div>
             <div class="ic-price" style="font-size:0.72rem;color:var(--text2);">${fmt(item.wholesale||item.price)}</div>
