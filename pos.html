@@ -334,8 +334,10 @@ function renderCartList(){
     if(!cart.length){el.innerHTML='<div class="text-center text-muted" style="padding:20px;">Cart is empty</div>';document.getElementById('checkoutBtn').disabled=true;document.getElementById('discSection').style.display='none';return;}
     document.getElementById('discSection').style.display=cart.some(c=>c.discountable)?'block':'none';
     document.getElementById('checkoutBtn').disabled=false;
-    el.innerHTML=cart.map((item,i)=>`<div class="cart-item">
-        <div class="ci-info"><div class="ci-name">${item.name}</div><div class="ci-price">${fmt(item.price)} \u00d7 ${item.qty}${!item.discountable?' <span style="color:var(--red);font-size:0.6rem;">ND</span>':''}</div></div>
+    const disc=cart.map((item,i)=>({item,i})).filter(x=>x.item.discountable);
+    const nd=cart.map((item,i)=>({item,i})).filter(x=>!x.item.discountable);
+    const renderItem=({item,i})=>`<div class="cart-item">
+        <div class="ci-info"><div class="ci-name">${item.name}</div><div class="ci-price">${fmt(item.price)} \u00d7 ${item.qty}</div></div>
         <div class="qty-control" style="gap:4px;">
             <button class="qty-btn" onclick="cartAdj(${i},-1)" style="width:30px;height:30px;font-size:1rem;">&#8722;</button>
             <span style="width:28px;text-align:center;font-weight:700;">${item.qty}</span>
@@ -343,7 +345,13 @@ function renderCartList(){
         </div>
         <div class="ci-total">${fmt(item.qty*item.price)}</div>
         <button onclick="removeFromCart(${i})" style="background:none;border:none;color:var(--red);font-size:1.1rem;cursor:pointer;padding:0 4px;">\u2715</button>
-    </div>`).join('');
+    </div>`;
+    let html=disc.map(renderItem).join('');
+    if(nd.length){
+        html+=`<div style="padding:6px 0 4px;margin-top:4px;border-top:1px solid var(--border);font-size:0.68rem;color:var(--red);font-weight:600;letter-spacing:0.03em;">NON-DISCOUNTABLE</div>`;
+        html+=nd.map(renderItem).join('');
+    }
+    el.innerHTML=html;
 }
 function cartAdj(i,d){cart[i].qty=Math.max(1,cart[i].qty+d);renderCartList();renderCartTotals();updateFloatBtn();renderGrid();}
 function removeFromCart(i){cart.splice(i,1);renderCartList();renderCartTotals();updateFloatBtn();renderGrid();}
