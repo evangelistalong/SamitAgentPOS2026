@@ -657,7 +657,7 @@ async function completeSale(){
         txId:'TX-'+Date.now(),
         customerCode:selCustomer?selCustomer.code:'',customerName:selCustomer?selCustomer.name:'Walk-in',
         items:cart.map(c=>({sku:c.sku,name:c.name,qty:c.qty,price:c.price,discountable:c.discountable,commission:c.commission})),
-        discountPct:(1-mult)*100,previousBalance:prevBal,paymentMethod:payMethod,
+        discountPct:(1-mult)*100,discountMult:mult,previousBalance:prevBal,paymentMethod:payMethod,
         cashAmount:parseFloat(document.getElementById('payCash').value)||0,
         chequeAmount:parseFloat(document.getElementById('payCheque').value)||0,
         chequeNumber:document.getElementById('payChequeNum').value,
@@ -687,7 +687,7 @@ function showLocalReceipt(p){
     const mult=p.discountMult!==undefined ? p.discountMult : (1-(p.discountPct/100));
     const discSub=p.items.filter(i=>i.discountable).reduce((s,i)=>s+i.qty*i.price,0);
     const nonDisc=p.items.filter(i=>!i.discountable).reduce((s,i)=>s+i.qty*i.price,0);
-    const discAmt=discSub*(p.discountPct/100);const total=discSub+nonDisc-discAmt;
+    const discAmt=discSub*(1-mult);const total=discSub*mult+nonDisc;
     let html=`<div class="receipt" id="receiptPrint"><div class="receipt-header"><strong>Samit Agent POS</strong><br>${CONFIG.AGENT_NAME}<br><br>Ref: ${p.txId}<br>${Sheets.now()}</div>`;
     if(p.customerName!=='Walk-in')html+=`Customer: ${p.customerName}<br>`;
     html+=`<div class="receipt-divider"></div>`;
@@ -722,11 +722,6 @@ function showLocalReceipt(p){
     document.getElementById('receiptModal').classList.add('active');
 }
 function fmtN(n){return(n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});}
-async function shareReceipt(){
-    const text=document.getElementById('receiptPrint').innerText;
-    if(navigator.share){try{await navigator.share({title:'Receipt',text});return;}catch(e){}}
-    try{await navigator.clipboard.writeText(text);showToast('&#128203; Copied!');}catch(e){}
-}
 async function showHistory(){
     const data=await Sheets.getTodayTransactions();
     document.getElementById('historyList').innerHTML=!data.length
@@ -881,8 +876,7 @@ function printReceipt() {
     w.document.write(`<html><head><title>Receipt</title><style>
         body{font-family:monospace;font-size:12px;padding:10px;max-width:300px;}
         @media print{body{margin:0;}}
-    </style><script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-</head><body>${el.innerHTML}</body></html>`);
+    </style></head><body>${el.innerHTML}</body></html>`);
     w.document.close();
     w.focus();
     setTimeout(() => { w.print(); w.close(); }, 300);
