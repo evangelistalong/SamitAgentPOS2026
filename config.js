@@ -7,6 +7,8 @@ const CONFIG = {
     SHEETS_API_KEY: 'AIzaSyCbcaFnfMfwA5MTNy8cwwx3juIg7Sz8RME',
     // Google Spreadsheet ID (from the sheet URL)
     SPREADSHEET_ID: '1bB5FyDPlGEuFxxl1IRXJny6Evs39Z-qBySDJhHn-TMs',
+    // Samit and Agent DSR Spreadsheet (source for Customer Master)
+    DSR_SPREADSHEET_ID: '1qYJsHtQqW8-iDZGay-9xO5VvcTC6oRYvldMrA0eG9wo',
     // Google Apps Script Web App URL (handles all writes)
     APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbweL64lxdGtCbw7CjsIuIUhiPQDIHp623J8vSST8j0oRW_fwyzmyjmfb21KyCYvWFA/exec',
     // Agent name shown in the app and written to all records

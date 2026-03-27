@@ -131,22 +131,85 @@ const Sheets = {
 
     // ── CUSTOMERS ─────────────────────────────────────────────
 
+    // Read from any spreadsheet (not just the default one)
+    async readSheetFrom(spreadsheetId, tabName) {
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(tabName)}?key=${CONFIG.SHEETS_API_KEY}`;
+        try {
+            const r = await fetch(url);
+            if (!r.ok) throw new Error('Sheets API ' + r.status);
+            const data = await r.json();
+            return data.values || [];
+        } catch (e) {
+            console.error('[Sheets.readSheetFrom]', spreadsheetId, tabName, e);
+            return null;
+        }
+    },
+
     async getCustomers() {
         const cached = Cache.get('customers');
         if (cached) return cached;
-        const rows = await this.readSheet(CONFIG.SHEETS.CUSTOMERS);
-        if (!rows || rows.length < 2) return [];
-        const [headers, ...data] = rows;
-        const h = headers.map(x => x.trim().toLowerCase());
-        // Support multiple possible header names from different sources
-        const iCode = Math.max(h.indexOf('code'), h.indexOf('customercode'));
-        const iName = Math.max(h.indexOf('name'), h.indexOf('customername'));
-        const iBal  = h.indexOf('balance');
-        const customers = data.map(r => ({
-            code:    (iCode >= 0 ? r[iCode] : '') || '',
-            name:    (iName >= 0 ? r[iName] : '') || '',
-            balance: iBal >= 0 ? (parseFloat(r[iBal]) || 0) : 0,
-        })).filter(c => c.code && c.name);
+
+        // 1. Read Customer Master from DSR sheet (source of truth for names/codes/routes)
+        let masterList = [];
+        if (CONFIG.DSR_SPREADSHEET_ID) {
+            const rows = await this.readSheetFrom(CONFIG.DSR_SPREADSHEET_ID, 'Customer Master');
+            if (rows && rows.length >= 2) {
+                const [headers, ...data] = rows;
+                const h = headers.map(x => x.trim().toLowerCase());
+                const iCode   = h.indexOf('code');
+                const iName   = Math.max(h.indexOf('customer name'), h.indexOf('customername'), h.indexOf('name'));
+                const iRoute  = h.indexOf('route');
+                const iActive = h.indexOf('active');
+                masterList = data.map(r => ({
+                    code:   String(iCode >= 0 ? r[iCode] : '') || '',
+                    name:   (iName >= 0 ? r[iName] : '') || '',
+                    route:  (iRoute >= 0 ? r[iRoute] : '') || '',
+                    active: iActive >= 0 ? (r[iActive] || 'Y').toUpperCase() !== 'N' : true,
+                })).filter(c => c.code && c.name && c.active);
+            }
+        }
+
+        // 2. Read balances from POS Customers sheet (where balance adjustments are written)
+        const balMap = {};
+        const balRows = await this.readSheet(CONFIG.SHEETS.CUSTOMERS);
+        if (balRows && balRows.length >= 2) {
+            const [bh, ...bd] = balRows;
+            const bh2 = bh.map(x => x.trim().toLowerCase());
+            const biCode = Math.max(bh2.indexOf('code'), bh2.indexOf('customercode'));
+            const biBal  = bh2.indexOf('balance');
+            if (biCode >= 0 && biBal >= 0) {
+                bd.forEach(r => {
+                    const code = String(r[biCode] || '').trim();
+                    if (code) balMap[code] = parseFloat(r[biBal]) || 0;
+                });
+            }
+        }
+
+        // 3. Merge: names from DSR, balances from POS
+        let customers;
+        if (masterList.length > 0) {
+            customers = masterList.map(c => ({
+                code:    c.code,
+                name:    c.name,
+                route:   c.route,
+                balance: balMap[c.code] || 0,
+            }));
+        } else {
+            // Fallback: read from POS Customers sheet if DSR is unavailable
+            const rows = await this.readSheet(CONFIG.SHEETS.CUSTOMERS);
+            if (!rows || rows.length < 2) return [];
+            const [headers, ...data] = rows;
+            const h = headers.map(x => x.trim().toLowerCase());
+            const iCode = Math.max(h.indexOf('code'), h.indexOf('customercode'));
+            const iName = Math.max(h.indexOf('name'), h.indexOf('customername'), h.indexOf('customer name'));
+            const iBal  = h.indexOf('balance');
+            customers = data.map(r => ({
+                code:    (iCode >= 0 ? r[iCode] : '') || '',
+                name:    (iName >= 0 ? r[iName] : '') || '',
+                balance: iBal >= 0 ? (parseFloat(r[iBal]) || 0) : 0,
+            })).filter(c => c.code && c.name);
+        }
+
         Cache.set('customers', customers, 5 * 60 * 1000);
         return customers;
     },
