@@ -383,71 +383,42 @@ async function computeItemScores(apiKey, sheetId) {
 }
 
 
-// ── SMART SORT ────────────────────────────────────────────────
-let _sortMap=null,_sortExpiry=0;
-async function getSmartSortMap(){
-    const now=Date.now();
-    if(_sortMap&&now<_sortExpiry)return _sortMap;
-    try{
-        const url=`https://sheets.googleapis.com/v4/spreadsheets/1DDueHEUvbUeCcornosMg_Vxdq6cvTSVSyTypfUNXSTI/values/DailyLoadBackup?key=${CONFIG.SHEETS_API_KEY}`;
-        const res=await fetch(url);const data=await res.json();
-        const rows=data.values||[];
-        if(rows.length<2)return {};
-        const h=rows[0].map(x=>x.toLowerCase().trim());
-        const iSKU=h.indexOf('sku'),iLoad=h.indexOf('loadqty');
-        const skuData={};
-        rows.slice(1).forEach(row=>{
-            const sku=(row[iSKU]||'').toString().trim();
-            if(!sku)return;
-            const qty=parseFloat(row[iLoad])||0;
-            if(!skuData[sku]){skuData[sku]={count:0,totalQty:0};}
-            skuData[sku].count++;skuData[sku].totalQty+=qty;
-        });
-        _sortMap={};
-        Object.entries(skuData).forEach(([sku,d])=>{
-            _sortMap[sku]={freq:d.count,avgQty:d.totalQty/d.count,score:d.count*1000+(d.totalQty/d.count)};
-        });
-        _sortExpiry=now+30*60*1000;
-        return _sortMap;
-    }catch(e){return {};}
-}
-function sortItemsBySmart(items,sortMap){
-    return [...items].sort((a,b)=>{
-        const sa=sortMap[String(a.sku)]||{score:0};
-        const sb=sortMap[String(b.sku)]||{score:0};
-        if(sb.score!==sa.score)return sb.score-sa.score;
-        return (a.name||'').localeCompare(b.name||'');
-    });
-}
+// ── SMART SORT (via computeItemScores above) ────────────────
 
 async function init(){
-    const [items, loadData, sortMap] = await Promise.all([
-        Sheets.getAllItems(),
-        Sheets.getLoad(),
-        getSmartSortMap()
-    ]);
-    allItems = sortItemsBySmart(items || [], sortMap);
+    // Load items and existing load first (critical) — sort maps are optional
+    let items, loadData, sortMap = {};
+    try {
+        [items, loadData] = await Promise.all([
+            Sheets.getAllItems(),
+            Sheets.getLoad()
+        ]);
+    } catch(e) {
+        console.error('Failed to load catalog:', e);
+        document.getElementById('itemGrid').innerHTML='<div class="text-center text-muted" style="grid-column:span 3;padding:30px 0;"><div style="font-size:2rem;">&#9888;</div><div>Failed to load catalog. Check connection and refresh.</div></div>';
+        return;
+    }
+    if (!items || !items.length) {
+        document.getElementById('itemGrid').innerHTML='<div class="text-center text-muted" style="grid-column:span 3;padding:30px 0;"><div style="font-size:2rem;">&#128230;</div><div>No items found in catalog.</div></div>';
+        return;
+    }
+    allItems = items;
     existingLoad = loadData || [];
 
-    // Compute smart sort scores from load history
+    // Try smart sort (non-blocking, with 5s timeout)
     try {
-        const scores = await computeItemScores(
-            CONFIG.SHEETS_API_KEY,
-            CONFIG.SPREADSHEET_ID
-        );
-        if (Object.keys(scores).length > 0) {
-            allItems.sort((a, b) => {
-                const sA = scores[a.sku] || 0;
-                const sB = scores[b.sku] || 0;
-                return sB - sA; // highest score first
-            });
+        const sortPromise = computeItemScores(CONFIG.SHEETS_API_KEY, CONFIG.SPREADSHEET_ID);
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000));
+        const scores = await Promise.race([sortPromise, timeoutPromise]);
+        if (scores && Object.keys(scores).length > 0) {
+            allItems.sort((a, b) => (scores[b.sku] || 0) - (scores[a.sku] || 0));
         }
-    } catch(e) {}
+    } catch(e) { /* sort failed or timed out — show items unsorted, no big deal */ }
+
     document.getElementById('totalItems').textContent=existingLoad.length;
     document.getElementById('totalQty').textContent=existingLoad.reduce((s,i)=>s+(i.loadQty||0),0);
     document.getElementById('totalValue').textContent=fmt(existingLoad.reduce((s,i)=>s+(i.loadQty||0)*i.price,0));
     buildCategoryTabs();renderGrid();
-    // Show float button if there are already loaded items
     updateFloatBtn();
 }
 init();
