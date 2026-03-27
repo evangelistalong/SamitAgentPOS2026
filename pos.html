@@ -120,18 +120,8 @@
         <div class="modal-handle"></div>
         <div class="modal-title" style="margin-bottom:4px;">&#x1f6d2; Cart</div>
         <div id="cartList" style="flex:1;overflow-y:auto;min-height:0;"></div>
-        <div id="discSection" style="display:none;padding-top:8px;border-top:1px solid var(--border);margin-top:4px;">
-            <div style="font-size:0.72rem;color:var(--text2);margin-bottom:4px;">Discount (discountable items)</div>
-            <div class="disc-row">
-                <div class="disc-pill" id="dp0" onclick="toggleDisc(0)"><span id="dl0">3%</span></div>
-                <div class="disc-pill" id="dp1" onclick="toggleDisc(1)"><span id="dl1">2%</span></div>
-                <div class="disc-pill" id="dp2" onclick="toggleDisc(2)"><span id="dl2">1%</span></div>
-            </div>
-        </div>
         <div style="padding-top:8px;border-top:1px solid var(--border);margin-top:4px;">
             <div class="flex-between text-sm mb-1"><span class="text-muted">Subtotal</span><span id="cartSub">&#8369;0</span></div>
-            <div class="flex-between text-sm mb-1" id="cartDiscRow" style="display:none;"><span class="text-red">Discount (<span id="cartDiscPct"></span>)</span><span class="text-red" id="cartDiscAmt"></span></div>
-        <div id="cartDiscLines" style="display:none;"></div>
             <div class="flex-between fw-bold" style="font-size:1rem;"><span>Total</span><span class="text-accent" id="cartTotal">&#8369;0</span></div>
             <div class="flex-between text-sm mt-1" id="cartPrevRow" style="display:none;"><span class="text-muted">Prev. Balance</span><span class="text-red" id="cartPrevBal"></span></div>
             <div class="flex-between fw-bold mt-1" id="cartGrandRow" style="display:none;"><span>Grand Total</span><span class="text-accent" id="cartGrand"></span></div>
@@ -331,8 +321,7 @@ function updateFloatBtn(){
 function openCart(){renderCartList();renderCartTotals();document.getElementById('cartModal').classList.add('active');}
 function renderCartList(){
     const el=document.getElementById('cartList');
-    if(!cart.length){el.innerHTML='<div class="text-center text-muted" style="padding:20px;">Cart is empty</div>';document.getElementById('checkoutBtn').disabled=true;document.getElementById('discSection').style.display='none';return;}
-    document.getElementById('discSection').style.display=cart.some(c=>c.discountable)?'block':'none';
+    if(!cart.length){el.innerHTML='<div class="text-center text-muted" style="padding:20px;">Cart is empty</div>';document.getElementById('checkoutBtn').disabled=true;return;}
     document.getElementById('checkoutBtn').disabled=false;
     const disc=cart.map((item,i)=>({item,i})).filter(x=>x.item.discountable);
     const nd=cart.map((item,i)=>({item,i})).filter(x=>!x.item.discountable);
@@ -346,40 +335,55 @@ function renderCartList(){
         <div class="ci-total">${fmt(item.qty*item.price)}</div>
         <button onclick="removeFromCart(${i})" style="background:none;border:none;color:var(--red);font-size:1.1rem;cursor:pointer;padding:0 4px;">\u2715</button>
     </div>`;
-    let html=disc.map(renderItem).join('');
+    let html='';
+
+    // Discountable items group
+    if(disc.length){
+        html+=disc.map(renderItem).join('');
+        const discSub=disc.reduce((s,x)=>s+x.item.qty*x.item.price,0);
+        // Discount pills
+        html+=`<div style="padding:6px 0 4px;border-top:1px solid var(--border);margin-top:4px;">
+            <div style="font-size:0.68rem;color:var(--text2);margin-bottom:4px;">Discount</div>
+            <div class="disc-row">
+                <div class="disc-pill ${discounts[0]?'active':''}" onclick="toggleDisc(0)"><span>${RATES()[0]*100}%</span></div>
+                <div class="disc-pill ${discounts[1]?'active':''}" onclick="toggleDisc(1)"><span>${RATES()[1]*100}%</span></div>
+                <div class="disc-pill ${discounts[2]?'active':''}" onclick="toggleDisc(2)"><span>${RATES()[2]*100}%</span></div>
+            </div>`;
+        // Show discount lines
+        const rts=RATES();
+        let runPrice=discSub;
+        discounts.forEach((on,i)=>{
+            if(on){
+                const lineAmt=runPrice*rts[i];
+                html+=`<div class="flex-between text-sm" style="margin-top:3px;"><span class="text-red">${(rts[i]*100).toFixed(0)}% Discount</span><span class="text-red">-${fmt(lineAmt)}</span></div>`;
+                runPrice-=lineAmt;
+            }
+        });
+        const m=discMultiplier();
+        html+=`<div class="flex-between text-sm" style="margin-top:4px;padding-top:4px;border-top:1px dashed var(--border);"><span style="color:var(--text2);">Discountable subtotal</span><span style="font-weight:600;">${fmt(discSub*m)}</span></div>`;
+        html+=`</div>`;
+    }
+
+    // Non-discountable items group
     if(nd.length){
         html+=`<div style="padding:6px 0 4px;margin-top:4px;border-top:1px solid var(--border);font-size:0.68rem;color:var(--red);font-weight:600;letter-spacing:0.03em;">NON-DISCOUNTABLE</div>`;
         html+=nd.map(renderItem).join('');
+        const ndSub=nd.reduce((s,x)=>s+x.item.qty*x.item.price,0);
+        html+=`<div class="flex-between text-sm" style="margin-top:4px;padding-top:4px;border-top:1px dashed var(--border);"><span style="color:var(--text2);">ND subtotal</span><span style="font-weight:600;">${fmt(ndSub)}</span></div>`;
     }
+
     el.innerHTML=html;
 }
 function cartAdj(i,d){cart[i].qty=Math.max(1,cart[i].qty+d);renderCartList();renderCartTotals();updateFloatBtn();renderGrid();}
 function removeFromCart(i){cart.splice(i,1);renderCartList();renderCartTotals();updateFloatBtn();renderGrid();}
-function toggleDisc(i){discounts[i]=!discounts[i];document.getElementById('dp'+i).classList.toggle('active',discounts[i]);renderCartTotals();updateFloatBtn();}
+function toggleDisc(i){discounts[i]=!discounts[i];renderCartList();renderCartTotals();updateFloatBtn();}
 function renderCartTotals(){
     const m=discMultiplier();
     const d=cart.filter(c=>c.discountable).reduce((s,c)=>s+c.qty*c.price,0);
     const n=cart.filter(c=>!c.discountable).reduce((s,c)=>s+c.qty*c.price,0);
-    const discAmt=d*(1-m);const total=d*m+n;
+    const total=d*m+n;
     const prev=includePrevBal?(parseFloat(document.getElementById('prevBalInput').value)||0):0;
     document.getElementById('cartSub').textContent=fmt(d+n);
-    // Show each active discount as a separate line
-    document.getElementById('cartDiscRow').style.display='none'; // hide combined row
-    const discContainer=document.getElementById('cartDiscLines');
-    if(discContainer){
-        let runPrice=d;let linesHtml='';
-        const rts=RATES();
-        discounts.forEach((on,i)=>{
-            if(on){
-                const lineAmt=runPrice*rts[i];
-                const lbl=document.getElementById('dl'+i)?document.getElementById('dl'+i).textContent:(rts[i]*100)+'%';
-                linesHtml+='<div class="flex-between text-sm mb-1"><span class="text-red">'+lbl+' Discount</span><span class="text-red">-'+fmt(lineAmt)+'</span></div>';
-                runPrice-=lineAmt;
-            }
-        });
-        discContainer.innerHTML=linesHtml;
-        discContainer.style.display=linesHtml?'block':'none';
-    }
     document.getElementById('cartTotal').textContent=fmt(total);
     if(prev>0){document.getElementById('cartPrevRow').style.display='flex';document.getElementById('cartGrandRow').style.display='flex';document.getElementById('cartPrevBal').textContent=fmt(prev);document.getElementById('cartGrand').textContent=fmt(total+prev);}
     else{document.getElementById('cartPrevRow').style.display='none';document.getElementById('cartGrandRow').style.display='none';}
