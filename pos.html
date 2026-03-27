@@ -465,27 +465,40 @@ async function openCustHistory(){
         const API_KEY=CONFIG.SHEETS_API_KEY;
         const code=selCustomer.code;
 
-        // Fetch both sheets in parallel
-        const [r1,r2,r3]=await Promise.all([
-            fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/AccountHistory?key=${API_KEY}`).then(r=>r.json()),
-            fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Transactions?key=${API_KEY}`).then(r=>r.json()),
-            fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Photos?key=${API_KEY}`).then(r=>r.json()).catch(()=>({values:[]})),
-        ]);
+        // Fetch: Customer Ledger from DSR + Transactions from POS
+        const fetches = [
+            fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Transactions?key=${API_KEY}`).then(r=>r.json()).catch(()=>({values:[]})),
+        ];
+        // Also fetch Customer Ledger from DSR sheet if configured
+        if(CONFIG.DSR_SPREADSHEET_ID){
+            fetches.push(
+                fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.DSR_SPREADSHEET_ID}/values/${encodeURIComponent('Customer Ledger')}?key=${API_KEY}`).then(r=>r.json()).catch(()=>({values:[]}))
+            );
+        }
+        const results=await Promise.all(fetches);
+        const r2=results[0]; // Transactions
+        const r1=results[1]||{values:[]}; // Customer Ledger from DSR
 
-        // Parse AccountHistory
+        // Parse Customer Ledger (DSR sheet)
         let txs=[];
         if(r1.values&&r1.values.length>1){
             const h=r1.values[0].map(x=>x.toLowerCase().trim());
-            const iDate=h.indexOf('date'),iCode=h.indexOf('customercode'),
-                  iCred=h.indexOf('credit'),iColl=h.indexOf('collection'),
-                  iInv=h.indexOf('invoice');
+            const iDate=h.indexOf('date'),iCust=Math.max(h.indexOf('customer'),h.indexOf('customername')),
+                  iType=h.indexOf('type'),iAmt=h.indexOf('amount'),iBal=h.indexOf('balance'),
+                  iCode=h.indexOf('customercode')||h.indexOf('customerco');
             r1.values.slice(1).forEach(row=>{
-                if((row[iCode]||'')==code){
-                    const credit=parseFloat(row[iCred])||0;
-                    const coll=parseFloat(row[iColl])||0;
-                    if(credit>0||coll>0) txs.push({
-                        date:row[iDate]||'',credit,collection:coll,
-                        invoice:row[iInv]||'',source:'history',txId:''
+                // Match by customer code or name
+                const rowCode=iCode>=0?(row[iCode]||''):'';
+                const rowCust=iCust>=0?(row[iCust]||''):'';
+                if(rowCode==code || rowCust===selCustomer.name){
+                    const amt=parseFloat(row[iAmt])||0;
+                    const type=(row[iType]||'').toLowerCase();
+                    txs.push({
+                        date:row[iDate]||'',
+                        credit:type==='credit'?amt:0,
+                        collection:type==='collection'?amt:0,
+                        invoice:'',source:'ledger',txId:'',
+                        method:type
                     });
                 }
             });
@@ -512,17 +525,6 @@ async function openCustHistory(){
             });
         }
 
-        // Parse Photos sheet
-        const photoMap={};
-        if(r3.values&&r3.values.length>1){
-            const h=r3.values[0].map(x=>x.toLowerCase().trim());
-            const iTxId=h.indexOf('txid'),iUrl=h.indexOf('url');
-            r3.values.slice(1).forEach(row=>{
-                const txid=row[iTxId]||'';
-                if(txid)photoMap[txid]=row[iUrl]||'';
-            });
-        }
-
         // Sort newest first
         txs.sort((a,b)=>b.date.localeCompare(a.date));
 
@@ -538,8 +540,6 @@ async function openCustHistory(){
         }
 
         document.getElementById('custHistList').innerHTML=txs.map(t=>{
-            const photoUrl=t.txId?photoMap[t.txId]:'';
-            const photoBtn=photoUrl?`<a href="${photoUrl}" target="_blank" style="background:rgba(96,165,250,0.15);color:var(--blue);border:none;border-radius:6px;padding:3px 8px;font-size:0.65rem;font-weight:600;text-decoration:none;white-space:nowrap;">&#128247; Photo</a>`:'';
             const isSale=t.credit>0&&t.collection<=0;
             const isPay=t.collection>0&&t.credit<=0;
             const badge=isSale
@@ -548,13 +548,11 @@ async function openCustHistory(){
                 ?`<span style="background:rgba(74,222,128,0.15);color:var(--green);border-radius:4px;padding:2px 7px;font-size:0.62rem;font-weight:700;text-transform:uppercase;">Payment</span>`
                 :`<span style="background:rgba(255,255,255,0.08);color:var(--text2);border-radius:4px;padding:2px 7px;font-size:0.62rem;font-weight:700;">Mixed</span>`;
             const amt=isSale?`<span style="color:var(--red);font-weight:700;">+${fmt(t.credit)}</span>`
-                :isPay?`<span style="color:var(--green);font-weight:700;">−${fmt(t.collection)}</span>`
+                :isPay?`<span style="color:var(--green);font-weight:700;">&minus;${fmt(t.collection)}</span>`
                 :`<span style="color:var(--text2);font-weight:700;">${fmt(t.credit)}</span>`;
             return`<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
                 <div style="font-size:0.72rem;color:var(--text2);min-width:74px;">${t.date.slice(0,10)}</div>
                 ${badge}
-                ${t.invoice?`<span style="font-size:0.65rem;color:var(--text2);">INV#${t.invoice}</span>`:''}
-                ${photoBtn}
                 <div style="margin-left:auto;">${amt}</div>
             </div>`;
         }).join('');
@@ -622,8 +620,15 @@ function openCustPickerFromPayment(){
 }
 
 function clearCustomerFromPayment(){
-    clearCustomer();
+    selCustomer=null;includePrevBal=false;
+    const custEmpty=document.getElementById('custEmpty');
+    const custSelected=document.getElementById('custSelected');
+    if(custEmpty)custEmpty.style.display='flex';
+    if(custSelected)custSelected.style.display='none';
+    const prevCard=document.getElementById('prevBalCard');
+    if(prevCard)prevCard.style.display='none';
     updatePayCustomerUI();
+    renderCartTotals();
 }
 function setPayMethod(m){
     payMethod=m;
