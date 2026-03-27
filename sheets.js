@@ -138,11 +138,15 @@ const Sheets = {
         if (!rows || rows.length < 2) return [];
         const [headers, ...data] = rows;
         const h = headers.map(x => x.trim().toLowerCase());
+        // Support multiple possible header names from different sources
+        const iCode = Math.max(h.indexOf('code'), h.indexOf('customercode'));
+        const iName = Math.max(h.indexOf('name'), h.indexOf('customername'));
+        const iBal  = h.indexOf('balance');
         const customers = data.map(r => ({
-            code:    r[h.indexOf('code')] || '',
-            name:    r[h.indexOf('name')] || '',
-            balance: parseFloat(r[h.indexOf('balance')]) || 0,
-        })).filter(c => c.code);
+            code:    (iCode >= 0 ? r[iCode] : '') || '',
+            name:    (iName >= 0 ? r[iName] : '') || '',
+            balance: iBal >= 0 ? (parseFloat(r[iBal]) || 0) : 0,
+        })).filter(c => c.code && c.name);
         Cache.set('customers', customers, 5 * 60 * 1000);
         return customers;
     },
